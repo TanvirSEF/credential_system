@@ -13,6 +13,7 @@ reaches the database, object storage, or application server.
 - Recovery key support and browser IndexedDB cache
 - Supabase Auth with PostgreSQL application data
 - S3-compatible storage: Cloudflare R2, AWS S3, MinIO, Backblaze B2, Wasabi, and others
+- Installable Android PWA with maskable icons, standalone mode, and safe offline fallback
 - Docker, Docker Compose, Dokploy, and one-command VPS installation
 
 ## Provider support
@@ -25,7 +26,8 @@ MongoDB is not currently supported. The schema and authorization model rely on
 PostgreSQL transactions, foreign keys, Drizzle's PostgreSQL dialect, and optional RLS.
 
 See [the self-hosting guide](./docs/self-hosting.md) for provider details, Docker and
-Dokploy deployment, database modes, security requirements, and updates.
+Dokploy deployment, database modes, Cloudflare R2 browser CORS, security requirements,
+and updates.
 
 ## VPS quick start
 
@@ -66,6 +68,18 @@ sudo sh /opt/secure-personal-vault/scripts/update.sh
 ```
 
 The updater deploys the latest published release tag and preserves the instance `.env`.
+
+## Install on Android
+
+Deploy the application behind HTTPS, open it in Android Chrome, and choose
+**Install app** from the in-app prompt or the browser menu. It launches in standalone
+mode as **SP Vault**. Installation status and updates are also available under
+**Dashboard → Settings → Android app**.
+
+The service worker caches only public interface assets and the offline explanation
+page. It never caches authenticated pages, sessions, credentials, documents, API
+responses, or decrypted vault data. Opening the installed app still requires online
+session verification and a Master Password unlock after the in-memory key is cleared.
 
 ## Local development
 

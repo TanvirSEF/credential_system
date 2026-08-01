@@ -36,6 +36,34 @@ Use the `STORAGE_S3_*` variables in `.env.example`. Set
 browsers because encrypted files upload and download directly through presigned URLs.
 Legacy `R2_*` variables remain supported for existing deployments.
 
+### Cloudflare R2 browser CORS
+
+Presigned URLs authenticate an upload or download, but browsers still require the R2
+bucket to allow the application's exact origin. In Cloudflare, open **R2 Object
+Storage → your bucket → Settings → CORS Policy → Add CORS policy**, select the JSON
+tab, and save a policy like this:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "https://vault.example.com",
+      "http://localhost:3000"
+    ],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Replace `https://vault.example.com` with the deployed application origin. An origin
+contains only the scheme, host, and optional port: do not add a trailing slash or URL
+path. Keep localhost only when local development uses the same bucket. R2 policy
+changes can take up to 30 seconds to propagate and do not require an application
+redeploy.
+
 ## Interactive VPS installation
 
 Requirements:
@@ -116,3 +144,17 @@ Dokploy does not run the interactive owner prompts. Create the owner in Supabase
 copy that user's UUID into `INSTANCE_OWNER_USER_ID`, and set `APP_VERSION` to the deployed
 release tag. Dokploy handles its own redeploy; the copied VPS command is intended for
 installations created by `install.sh`.
+
+## Android PWA installation
+
+The production domain must use HTTPS. Android Chrome then offers **Install app** after
+it receives `/manifest.webmanifest`, `/sw.js`, and the required launcher icons. Users
+can also install or apply a waiting interface update from **Dashboard → Settings →
+Android app**.
+
+Do not configure a reverse proxy or CDN to cache `/sw.js`; the application sends
+`Cache-Control: no-cache, no-store, must-revalidate` for that route. Hashed Next.js
+static assets may use their normal immutable caching. The service worker intentionally
+uses network-only navigation for authenticated routes and caches no vault records,
+sessions, API responses, uploads, or decrypted data. When a service-worker update is
+applied, the page reloads and any in-memory unlocked vault key is cleared.

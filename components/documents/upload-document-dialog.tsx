@@ -43,6 +43,16 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function uploadErrorMessage(caughtError: unknown): string {
+  if (caughtError instanceof TypeError && caughtError.message === "Failed to fetch") {
+    return "The browser could not reach private storage. Check that this site's exact origin is allowed in the bucket CORS policy, then try again.";
+  }
+
+  return caughtError instanceof Error
+    ? caughtError.message
+    : "The encrypted document could not be uploaded.";
+}
+
 export function UploadDocumentDialog({ onUploaded }: UploadDocumentDialogProps) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -133,11 +143,7 @@ export function UploadDocumentDialog({ onUploaded }: UploadDocumentDialogProps) 
       setOpen(false);
       onUploaded();
     } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "The encrypted document could not be uploaded."
-      );
+      setError(uploadErrorMessage(caughtError));
       setPhase("idle");
     }
   }

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServerEnv } from "@/lib/supabase/env";
 
 const protectedPrefixes = ["/dashboard", "/setup", "/unlock"];
+const authPaths = ["/login", "/register"];
 
 function isProtectedPath(pathname: string) {
   return protectedPrefixes.some(
@@ -55,6 +56,13 @@ export async function updateSession(request: NextRequest) {
     ) {
       const loginUrl = new URL("/login", request.url);
       return NextResponse.redirect(loginUrl);
+    }
+    if (
+      !error &&
+      data?.claims &&
+      authPaths.includes(request.nextUrl.pathname)
+    ) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
   } catch (error) {
     console.error("Supabase session verification failed:", error);

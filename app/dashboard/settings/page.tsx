@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { VaultGuard } from "@/components/vault-guard";
 import { AvatarUpload } from "@/components/avatar-upload";
+import { PwaSettingsCard } from "@/components/pwa-manager";
 import { getProfileAction, updateProfileNameAction } from "@/lib/actions/profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +125,8 @@ function SettingsContent() {
           )}
         </CardContent>
       </Card>
+
+      <PwaSettingsCard />
     </div>
   );
 }

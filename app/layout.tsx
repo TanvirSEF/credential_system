@@ -1,7 +1,41 @@
 import { Outfit, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PwaManager } from "@/components/pwa-manager";
 import { cn } from "@/lib/utils";
+
+export const metadata: Metadata = {
+  applicationName: "Secure Personal Vault",
+  title: {
+    default: "Secure Personal Vault",
+    template: "%s | Secure Personal Vault",
+  },
+  description:
+    "A zero-knowledge encrypted vault for passwords, API keys, and private documents.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "SP Vault",
+  },
+  icons: {
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#2563eb" },
+    { media: "(prefers-color-scheme: dark)", color: "#08132b" },
+  ],
+};
 
 const fontHeading = Outfit({
   subsets: ["latin"],
@@ -40,7 +74,10 @@ export default function RootLayout({
         suppressHydrationWarning
         className="min-h-screen bg-background font-sans text-foreground"
       >
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <PwaManager />
+        </ThemeProvider>
       </body>
     </html>
   );
