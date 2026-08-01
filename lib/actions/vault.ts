@@ -14,22 +14,33 @@ export async function getUserVaultStatus() {
     return { authenticated: false, hasVault: false };
   }
 
-  const data = await withRls(user.id, async (tx) => {
-    const userVaults = await tx
-      .select()
-      .from(vaults)
-      .where(eq(vaults.ownerId, user.id));
+  let data;
+  try {
+    data = await withRls(user.id, async (tx) => {
+      const userVaults = await tx
+        .select()
+        .from(vaults)
+        .where(eq(vaults.ownerId, user.id));
 
-    if (userVaults.length === 0) return null;
+      if (userVaults.length === 0) return null;
 
-    const userVault = userVaults[0];
-    const envelopes = await tx
-      .select()
-      .from(vaultKeyEnvelopes)
-      .where(eq(vaultKeyEnvelopes.vaultId, userVault.id));
+      const userVault = userVaults[0];
+      const envelopes = await tx
+        .select()
+        .from(vaultKeyEnvelopes)
+        .where(eq(vaultKeyEnvelopes.vaultId, userVault.id));
 
-    return { userVault, envelopes };
-  });
+      return { userVault, envelopes };
+    });
+  } catch (error) {
+    console.error("Vault database status check failed:", error);
+    return {
+      authenticated: true,
+      hasVault: false,
+      error:
+        "The vault database is unavailable. Check DATABASE_URL and database authorization settings.",
+    } as const;
+  }
 
   if (!data) {
     return { authenticated: true, user, hasVault: false };

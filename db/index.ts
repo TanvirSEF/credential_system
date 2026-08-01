@@ -9,14 +9,14 @@ if (databaseProvider !== "postgresql") {
 }
 
 const configuredConnectionString =
-  process.env.DIRECT_URL ||
+  process.env.DATABASE_URL ||
   process.env.POSTGRES_URL ||
-  process.env.DATABASE_URL;
+  process.env.DIRECT_URL;
 
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 if (!configuredConnectionString && !isProductionBuild) {
-  throw new Error("Missing PostgreSQL connection string (DIRECT_URL or POSTGRES_URL) in .env.");
+  throw new Error("Missing PostgreSQL connection string (DATABASE_URL or POSTGRES_URL) in .env.");
 }
 
 // Next.js evaluates server modules while producing a standalone image. postgres-js

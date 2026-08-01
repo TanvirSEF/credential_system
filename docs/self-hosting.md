@@ -23,6 +23,12 @@ must remain private because server actions enforce row ownership.
 already created with `pnpm db:push`. Use `DATABASE_SETUP_MODE=migrate` only for an empty
 database or a database already managed by the committed migration journal.
 
+For Supabase on a typical IPv4 VPS, set `DATABASE_URL` to the Shared Pooler session-mode
+connection shown under **Connect → Session pooler**. Keep the direct database URL in
+`DIRECT_URL` only for Drizzle migrations and management tools. Application runtime now
+prefers `DATABASE_URL`; this prevents a direct IPv6-only endpoint from breaking vault
+loading after a successful login.
+
 ## Object storage
 
 Use the `STORAGE_S3_*` variables in `.env.example`. Set
@@ -93,6 +99,12 @@ PostgreSQL or an object-storage admin console directly to the internet.
 Dokploy can deploy `docker-compose.yml` directly. Configure values from `.env.example`,
 expose the `app` service on port 3000, and attach a domain. Run the migration tool profile
 only when using `DATABASE_SETUP_MODE=migrate`.
+
+If Supabase Auth succeeds but the dashboard reports that the vault database is
+unavailable, verify that Dokploy has both runtime and build-time Supabase variables and
+that `DATABASE_URL` uses a connection reachable from the VPS. Check the app container
+logs for `Vault database status check failed`; never paste connection strings into logs
+or support messages.
 
 Dokploy does not run the interactive owner prompts. Create the owner in Supabase Auth,
 copy that user's UUID into `INSTANCE_OWNER_USER_ID`, and set `APP_VERSION` to the deployed

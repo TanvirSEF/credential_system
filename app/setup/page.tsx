@@ -30,6 +30,7 @@ export default function SetupWizardPage() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [checking, setChecking] = useState(true);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   // Master password state
   const [masterPassword, setMasterPassword] = useState("");
@@ -49,7 +50,10 @@ export default function SetupWizardPage() {
   useEffect(() => {
     async function checkStatus() {
       const status = await getUserVaultStatus();
-      if (!status.authenticated) {
+      if (status.error) {
+        setStatusError(status.error);
+        setChecking(false);
+      } else if (!status.authenticated) {
         router.push("/login");
       } else if (status.hasVault) {
         router.push("/unlock");
@@ -162,6 +166,24 @@ export default function SetupWizardPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
         Loading vault setup...
+      </div>
+    );
+  }
+
+  if (statusError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Vault service unavailable</CardTitle>
+            <CardDescription>{statusError}</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button className="w-full" onClick={() => window.location.reload()}>
+              Try again
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }

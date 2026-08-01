@@ -24,6 +24,7 @@ export default function UnlockVaultPage() {
   const { setUnlockedSession, isUnlocked } = useVaultSessionStore();
 
   const [checking, setChecking] = useState(true);
+  const [statusUnavailable, setStatusUnavailable] = useState(false);
   const [vaultId, setVaultId] = useState<string | null>(null);
   const [masterEnvelope, setMasterEnvelope] = useState<KeyEnvelope | null>(null);
   const [recoveryEnvelope, setRecoveryEnvelope] = useState<KeyEnvelope | null>(null);
@@ -38,7 +39,11 @@ export default function UnlockVaultPage() {
   useEffect(() => {
     async function initStatus() {
       const status = await getUserVaultStatus();
-      if (!status.authenticated) {
+      if (status.error) {
+        setError(status.error);
+        setStatusUnavailable(true);
+        setChecking(false);
+      } else if (!status.authenticated) {
         router.push("/login");
       } else if (!status.hasVault) {
         router.push("/setup");
@@ -91,6 +96,24 @@ export default function UnlockVaultPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground font-sans">
         Checking vault status...
+      </div>
+    );
+  }
+
+  if (statusUnavailable) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Vault service unavailable</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button className="w-full" onClick={() => window.location.reload()}>
+              Try again
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }

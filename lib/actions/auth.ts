@@ -13,15 +13,23 @@ export async function loginAction(formData: FormData) {
     return { error: "Email and password are required." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
-    console.warn("Login failed:", error.message);
-    return { error: "Invalid email or password." };
+    if (error) {
+      console.warn("Login failed:", error.message);
+      return { error: "Invalid email or password." };
+    }
+  } catch (error) {
+    console.error("Authentication service failure:", error);
+    return {
+      error:
+        "Authentication service is unavailable. Check the deployment configuration and try again.",
+    };
   }
 
   return { success: true };

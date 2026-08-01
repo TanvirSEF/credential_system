@@ -14,11 +14,15 @@ export function VaultGuard({ children }: { children: React.ReactNode }) {
   const lastActivityRef = useRef(0);
 
   const [loading, setLoading] = useState(true);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     async function verifyGuard() {
       const status = await getUserVaultStatus();
-      if (!status.authenticated) {
+      if (status.error) {
+        setStatusError(status.error);
+        setLoading(false);
+      } else if (!status.authenticated) {
         router.push("/login");
       } else if (!status.hasVault) {
         router.push("/setup");
@@ -66,6 +70,24 @@ export function VaultGuard({ children }: { children: React.ReactNode }) {
       window.removeEventListener("keydown", handleUserActivity);
     };
   }, [isUnlocked, autoLockMinutes, lockVault, router]);
+
+  if (statusError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="w-full max-w-md rounded-xl border border-destructive/25 bg-card p-6 text-center">
+          <h1 className="text-lg font-bold">Vault service unavailable</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{statusError}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-5 h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || !isUnlocked) {
     return (
