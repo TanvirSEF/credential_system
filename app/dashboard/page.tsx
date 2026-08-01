@@ -1,12 +1,13 @@
 "use client";
 
-import { VaultGuard } from "@/components/vault/vault-guard";
+import { VaultGuard } from "@/components/vault-guard";
 import { useVaultSessionStore } from "@/stores/vault-session-store";
 import { signOutAction } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 function DashboardContent() {
   const router = useRouter();
@@ -32,6 +33,9 @@ function DashboardContent() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/types")}>
+            📁 Manage Categories
+          </Button>
           <Button variant="outline" size="sm" onClick={handleLock}>
             🔒 Lock Vault
           </Button>
@@ -66,17 +70,19 @@ function DashboardContent() {
               <CardTitle className="text-3xl font-extrabold">0</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">Phase 4 will add dynamic types & entries</p>
+              <p className="text-xs text-muted-foreground">Phase 5 will add credential entries</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Documents</CardDescription>
-              <CardTitle className="text-3xl font-extrabold">0</CardTitle>
+              <CardDescription>Categories & Templates</CardDescription>
+              <CardTitle className="text-3xl font-extrabold">Manage</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">Encrypted file storage</p>
+            <CardContent className="pt-1">
+              <Button size="sm" variant="secondary" className="w-full" onClick={() => router.push("/dashboard/types")}>
+                Manage Categories →
+              </Button>
             </CardContent>
           </Card>
 
