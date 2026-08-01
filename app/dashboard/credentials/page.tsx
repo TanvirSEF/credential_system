@@ -6,6 +6,8 @@ import { useVaultSessionStore } from "@/stores/vault-session-store";
 import { decryptPayload } from "@/lib/crypto";
 import { fetchCredentialsAction } from "@/lib/actions/credentials";
 import { fetchCredentialTypesAction } from "@/lib/actions/credential-types";
+import { setCachedCredentials, getCachedCredentials } from "@/lib/storage/indexed-db";
+import { subscribeBroadcast, broadcastMessage } from "@/lib/storage/broadcast-channel";
 import { CreateCredentialDialog } from "@/components/credentials/create-credential-dialog";
 import { CredentialDetailDialog } from "@/components/credentials/credential-detail-dialog";
 import { Button } from "@/components/ui/button";
@@ -38,8 +40,38 @@ function CredentialsContent() {
 
   const loadData = useCallback(async () => {
     if (!vaultId || !vaultKey) return;
-    setLoading(true);
 
+    // 1. Instant Cold Start from IndexedDB Cache
+    const cachedRows = await getCachedCredentials(vaultId);
+    if (cachedRows.length > 0) {
+      const decryptedCached = await Promise.all(
+        cachedRows.map(async (c) => ({
+          id: c.id,
+          vaultId: c.vaultId,
+          ownerId: "",
+          typeId: c.typeId,
+          deletedAt: c.deletedAt,
+          version: c.version,
+          createdAt: new Date(),
+          updatedAt: c.updatedAt,
+          payload: await decryptPayload<DecryptedCredentialPayload>(
+            {
+              ciphertext: c.payloadCiphertext,
+              iv: c.iv,
+              cryptoVersion: c.cryptoVersion,
+              schemaVersion: 1,
+            },
+            vaultKey
+          ),
+        }))
+      );
+      setCredentialsList(decryptedCached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    // 2. Fetch Fresh Data from Supabase
     const typesRes = await fetchCredentialTypesAction(vaultId);
     if (typesRes.types && typesRes.types.length > 0) {
       const decryptedTypes = await Promise.all(
@@ -62,8 +94,6 @@ function CredentialsContent() {
         }))
       );
       setTypes(decryptedTypes);
-    } else {
-      setTypes([]);
     }
 
     const credsRes = await fetchCredentialsAction(vaultId);
@@ -90,7 +120,23 @@ function CredentialsContent() {
         }))
       );
       setCredentialsList(decryptedCreds);
-    } else {
+
+      // Save encrypted rows to IndexedDB cache
+      setCachedCredentials(
+        vaultId,
+        credsRes.credentials.map((r) => ({
+          id: r.id,
+          vaultId: r.vaultId,
+          typeId: r.typeId,
+          payloadCiphertext: r.payloadCiphertext,
+          iv: r.iv,
+          cryptoVersion: r.cryptoVersion,
+          version: r.version,
+          deletedAt: r.deletedAt,
+          updatedAt: r.updatedAt,
+        }))
+      );
+    } else if (cachedRows.length === 0) {
       setCredentialsList([]);
     }
 
@@ -99,6 +145,15 @@ function CredentialsContent() {
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  // Listen for broadcast cache invalidation events from other tabs
+  useEffect(() => {
+    return subscribeBroadcast((msg) => {
+      if (msg.type === "CACHE_INVALIDATED") {
+        loadData();
+      }
+    });
   }, [loadData]);
 
   const filteredCredentials = useMemo(() => {
@@ -149,6 +204,7 @@ function CredentialsContent() {
             editCredential={editingCredential}
             onSaved={() => {
               setEditingCredential(null);
+              broadcastMessage({ type: "CACHE_INVALIDATED" });
               loadData();
             }}
           />
@@ -263,7 +319,10 @@ function CredentialsContent() {
         credential={selectedCredential}
         open={detailOpen}
         onOpenChange={setDetailOpen}
-        onDeleted={loadData}
+        onDeleted={() => {
+          broadcastMessage({ type: "CACHE_INVALIDATED" });
+          loadData();
+        }}
         onEdit={(cred) => {
           setEditingCredential(cred);
         }}

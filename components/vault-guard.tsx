@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getUserVaultStatus } from "@/lib/actions/vault";
 import { useVaultSessionStore } from "@/stores/vault-session-store";
+import { subscribeBroadcast } from "@/lib/storage/broadcast-channel";
 
 export function VaultGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -27,6 +28,17 @@ export function VaultGuard({ children }: { children: React.ReactNode }) {
     }
     verifyGuard();
   }, [router, isUnlocked]);
+
+  // Multi-tab broadcast channel listener
+  useEffect(() => {
+    const unsubscribe = subscribeBroadcast((msg) => {
+      if (msg.type === "VAULT_LOCKED") {
+        lockVault();
+        router.push("/unlock");
+      }
+    });
+    return unsubscribe;
+  }, [lockVault, router]);
 
   // Inactivity auto-lock listener
   useEffect(() => {

@@ -1,25 +1,25 @@
 import { create } from "zustand";
+import { broadcastMessage } from "@/lib/storage/broadcast-channel";
 
 interface VaultSessionState {
   vaultKey: CryptoKey | null;
   vaultId: string | null;
   isUnlocked: boolean;
-  autoLockMinutes: number;
   lastActivityTimestamp: number;
+  autoLockMinutes: number;
   setUnlockedSession: (vaultKey: CryptoKey, vaultId: string) => void;
-  lockVault: () => void;
   updateActivity: () => void;
-  setAutoLockMinutes: (minutes: number) => void;
+  lockVault: () => void;
 }
 
 export const useVaultSessionStore = create<VaultSessionState>((set) => ({
   vaultKey: null,
   vaultId: null,
   isUnlocked: false,
-  autoLockMinutes: 15,
   lastActivityTimestamp: Date.now(),
+  autoLockMinutes: 15,
 
-  setUnlockedSession: (vaultKey: CryptoKey, vaultId: string) =>
+  setUnlockedSession: (vaultKey, vaultId) =>
     set({
       vaultKey,
       vaultId,
@@ -27,14 +27,14 @@ export const useVaultSessionStore = create<VaultSessionState>((set) => ({
       lastActivityTimestamp: Date.now(),
     }),
 
-  lockVault: () =>
+  updateActivity: () => set({ lastActivityTimestamp: Date.now() }),
+
+  lockVault: () => {
+    broadcastMessage({ type: "VAULT_LOCKED" });
     set({
       vaultKey: null,
       vaultId: null,
       isUnlocked: false,
-    }),
-
-  updateActivity: () => set({ lastActivityTimestamp: Date.now() }),
-
-  setAutoLockMinutes: (minutes: number) => set({ autoLockMinutes: minutes }),
+    });
+  },
 }));
