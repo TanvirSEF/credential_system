@@ -72,31 +72,14 @@ function TrashDashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="border-b bg-card px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard/credentials" className="text-sm font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" /> Credentials
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <h1 className="text-lg font-bold">Trash & Recovery</h1>
+    <div className="p-6 lg:p-8 space-y-6 max-w-[1200px]">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-extrabold tracking-tight font-heading">Trash & Recovery</h1>
+          <p className="text-sm text-muted-foreground">Soft-deleted items retained for 30 days · {trashList.length} items</p>
         </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="max-w-6xl mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Trash Bin</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Soft-deleted items are retained for 30 days before permanent purging.
-            </p>
-          </div>
-          <Badge variant="outline" className="font-semibold">
-            {trashList.length} Items in Trash
-          </Badge>
-        </div>
+      </div>
 
         {loading ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
@@ -143,7 +126,6 @@ function TrashDashboardContent() {
             ))}
           </div>
         )}
-      </main>
     </div>
   );
 }

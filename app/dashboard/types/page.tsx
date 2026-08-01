@@ -67,33 +67,15 @@ function TypesDashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Navigation Header */}
-      <header className="border-b bg-card px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-sm font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" /> Dashboard
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <h1 className="text-lg font-bold">Category Types & Templates</h1>
+    <div className="p-6 lg:p-8 space-y-6 max-w-[1200px]">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-extrabold tracking-tight font-heading">Categories & Templates</h1>
+          <p className="text-sm text-muted-foreground">Hierarchical credential categories · {types.length} categories</p>
         </div>
-
         <CreateTypeDialog existingTypes={types} onTypeCreated={loadTypes} />
-      </header>
-
-      {/* Main Container */}
-      <main className="max-w-6xl mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Credential Categories</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Hierarchical credential categories and dynamic form field templates.
-            </p>
-          </div>
-          <Badge variant="outline" className="font-semibold">
-            {types.length} Categories
-          </Badge>
-        </div>
+      </div>
 
         {loading ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
@@ -161,7 +143,6 @@ function TypesDashboardContent() {
             ))}
           </div>
         )}
-      </main>
     </div>
   );
 }

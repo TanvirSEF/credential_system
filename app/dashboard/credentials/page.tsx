@@ -183,22 +183,14 @@ function CredentialsContent() {
   }, [credentialsList, searchQuery, selectedTypeId, favoritesOnly]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="border-b bg-card px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-sm font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" /> Dashboard
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <h1 className="text-lg font-bold">Encrypted Credentials</h1>
+    <div className="p-6 lg:p-8 space-y-6 max-w-[1200px]">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-extrabold tracking-tight font-heading">Encrypted Credentials</h1>
+          <p className="text-sm text-muted-foreground">Manage your passwords, API keys, and secrets</p>
         </div>
-
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/trash")}>
-            <Trash2 className="h-4 w-4 mr-1.5" /> Trash
-          </Button>
-
           <CreateCredentialDialog
             existingTypes={types}
             editCredential={editingCredential}
@@ -209,10 +201,10 @@ function CredentialsContent() {
             }}
           />
         </div>
-      </header>
+      </div>
 
-      {/* Main Container */}
-      <main className="max-w-6xl mx-auto p-6 space-y-6">
+      {/* Main Content */}
+      <div className="space-y-6">
         {/* Search Bar & Filters */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-xl border shadow-sm">
           <div className="relative w-full md:w-1/2">
@@ -312,7 +304,7 @@ function CredentialsContent() {
             ))}
           </div>
         )}
-      </main>
+      </div>
 
       {/* Detail View Modal */}
       <CredentialDetailDialog

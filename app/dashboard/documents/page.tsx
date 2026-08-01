@@ -107,36 +107,15 @@ function DocumentsContent() {
   const totalSizeMB = (totalSizeBytes / 1024 / 1024).toFixed(2);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="border-b bg-card px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-sm font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" /> Dashboard
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <h1 className="text-lg font-bold">Encrypted Documents</h1>
+    <div className="p-6 lg:p-8 space-y-6 max-w-[1200px]">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-extrabold tracking-tight font-heading">Encrypted Documents</h1>
+          <p className="text-sm text-muted-foreground">Zero-knowledge encrypted files · {documentsList.length} files ({totalSizeMB} MB)</p>
         </div>
-
         <UploadDocumentDialog onUploaded={loadDocuments} />
-      </header>
-
-      {/* Main Container */}
-      <main className="max-w-6xl mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Document Vault</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Zero-knowledge encrypted files stored in private storage.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="font-semibold">
-              {documentsList.length} Files ({totalSizeMB} MB)
-            </Badge>
-          </div>
-        </div>
+      </div>
 
         {loading ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
@@ -199,7 +178,6 @@ function DocumentsContent() {
             ))}
           </div>
         )}
-      </main>
     </div>
   );
 }
