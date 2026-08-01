@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { VaultGuard } from "@/components/vault-guard";
 import { useVaultSessionStore } from "@/stores/vault-session-store";
-import { signOutAction } from "@/lib/actions/auth";
+import { signOutAction, getUserProfileAction } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,15 @@ import { Shield, Key, FileText, Folder, Lock, LogOut, Trash2 } from "lucide-reac
 function DashboardContent() {
   const router = useRouter();
   const lockVault = useVaultSessionStore((s) => s.lockVault);
+  const [profile, setProfile] = useState<{ email: string; fullName: string } | null>(null);
+
+  useEffect(() => {
+    async function loadProfile() {
+      const userProf = await getUserProfileAction();
+      if (userProf) setProfile(userProf);
+    }
+    loadProfile();
+  }, []);
 
   function handleLock() {
     lockVault();
@@ -58,7 +68,9 @@ function DashboardContent() {
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle className="text-2xl font-bold">Vault Initialized</CardTitle>
+              <CardTitle className="text-2xl font-bold">
+                Welcome back{profile?.fullName ? `, ${profile.fullName}` : profile?.email ? `, ${profile.email}` : ""}
+              </CardTitle>
               <CardDescription className="mt-1">
                 Your 256-bit AES-GCM Vault Key is loaded in secure memory.
               </CardDescription>

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { credentialTypes, vaultKeyEnvelopes, vaults } from "@/db/schema";
+import { vaults, vaultKeyEnvelopes, credentialTypes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { KeyEnvelope } from "@/lib/crypto/types";
 
@@ -11,20 +11,20 @@ export async function getUserVaultStatus() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    return { authenticated: false, hasVault: false, masterEnvelope: null, vaultId: null };
+    return { authenticated: false, hasVault: false };
   }
 
   const userVaults = await db
     .select()
     .from(vaults)
-    .where(eq(vaults.ownerId, user.id))
-    .limit(1);
+    .where(eq(vaults.ownerId, user.id));
 
   if (userVaults.length === 0) {
-    return { authenticated: true, user, hasVault: false, masterEnvelope: null, vaultId: null };
+    return { authenticated: true, user, hasVault: false };
   }
 
   const userVault = userVaults[0];
+
   const envelopes = await db
     .select()
     .from(vaultKeyEnvelopes)
@@ -37,11 +37,14 @@ export async function getUserVaultStatus() {
     ? {
         wrappedKey: masterEnvelopeRecord.wrappedKey,
         iv: masterEnvelopeRecord.iv,
-        salt: masterEnvelopeRecord.salt,
-        kdfName: masterEnvelopeRecord.kdfName,
-        kdfParams: masterEnvelopeRecord.kdfParams as any,
-        verificationCiphertext: masterEnvelopeRecord.verificationCiphertext || undefined,
-        verificationIv: masterEnvelopeRecord.verificationIv || undefined,
+        salt: masterEnvelopeRecord.kdfSalt,
+        kdfName: "pbkdf2",
+        kdfParams: {
+          name: "pbkdf2",
+          salt: masterEnvelopeRecord.kdfSalt,
+          iterations: masterEnvelopeRecord.kdfIterations,
+          hash: "SHA-256",
+        },
         cryptoVersion: masterEnvelopeRecord.cryptoVersion,
       }
     : null;
@@ -50,9 +53,14 @@ export async function getUserVaultStatus() {
     ? {
         wrappedKey: recoveryEnvelopeRecord.wrappedKey,
         iv: recoveryEnvelopeRecord.iv,
-        salt: recoveryEnvelopeRecord.salt,
-        kdfName: recoveryEnvelopeRecord.kdfName,
-        kdfParams: recoveryEnvelopeRecord.kdfParams as any,
+        salt: recoveryEnvelopeRecord.kdfSalt,
+        kdfName: "pbkdf2",
+        kdfParams: {
+          name: "pbkdf2",
+          salt: recoveryEnvelopeRecord.kdfSalt,
+          iterations: recoveryEnvelopeRecord.kdfIterations,
+          hash: "SHA-256",
+        },
         cryptoVersion: recoveryEnvelopeRecord.cryptoVersion,
       }
     : null;
@@ -104,12 +112,9 @@ export async function createVaultAndEnvelopesAction(payload: {
       envelopeType: "master",
       wrappedKey: payload.masterEnvelope.wrappedKey,
       iv: payload.masterEnvelope.iv,
-      salt: payload.masterEnvelope.salt,
-      kdfName: payload.masterEnvelope.kdfName,
-      kdfParams: payload.masterEnvelope.kdfParams,
-      verificationCiphertext: payload.masterEnvelope.verificationCiphertext,
-      verificationIv: payload.masterEnvelope.verificationIv,
-      cryptoVersion: payload.masterEnvelope.cryptoVersion,
+      kdfSalt: payload.masterEnvelope.salt,
+      kdfIterations: payload.masterEnvelope.kdfParams.iterations,
+      cryptoVersion: 1,
     },
     {
       vaultId: newVault.id,
@@ -117,21 +122,20 @@ export async function createVaultAndEnvelopesAction(payload: {
       envelopeType: "recovery",
       wrappedKey: payload.recoveryEnvelope.wrappedKey,
       iv: payload.recoveryEnvelope.iv,
-      salt: payload.recoveryEnvelope.salt,
-      kdfName: payload.recoveryEnvelope.kdfName,
-      kdfParams: payload.recoveryEnvelope.kdfParams,
-      cryptoVersion: payload.recoveryEnvelope.cryptoVersion,
+      kdfSalt: payload.recoveryEnvelope.salt,
+      kdfIterations: payload.recoveryEnvelope.kdfParams.iterations,
+      cryptoVersion: 1,
     },
   ]);
 
   if (payload.defaultTypes.length > 0) {
     await db.insert(credentialTypes).values(
-      payload.defaultTypes.map((t) => ({
+      payload.defaultTypes.map((dt) => ({
         vaultId: newVault.id,
         ownerId: user.id,
-        payloadCiphertext: t.payloadCiphertext,
-        iv: t.iv,
-        sortOrder: t.sortOrder,
+        payloadCiphertext: dt.payloadCiphertext,
+        iv: dt.iv,
+        sortOrder: dt.sortOrder,
         cryptoVersion: 1,
         schemaVersion: 1,
       }))

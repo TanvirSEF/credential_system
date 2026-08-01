@@ -69,6 +69,17 @@ export default function RegisterPage() {
               )}
 
               <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  required
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input
                   id="email"
