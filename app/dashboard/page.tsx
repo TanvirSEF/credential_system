@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 function DashboardContent() {
   const router = useRouter();
@@ -33,8 +32,11 @@ function DashboardContent() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/credentials")}>
+            🔑 Credentials
+          </Button>
           <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/types")}>
-            📁 Manage Categories
+            📁 Categories
           </Button>
           <Button variant="outline" size="sm" onClick={handleLock}>
             🔒 Lock Vault
@@ -64,35 +66,48 @@ function DashboardContent() {
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
+          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push("/dashboard/credentials")}>
             <CardHeader className="pb-2">
-              <CardDescription>Total Credentials</CardDescription>
-              <CardTitle className="text-3xl font-extrabold">0</CardTitle>
+              <CardDescription>Encrypted Credentials</CardDescription>
+              <CardTitle className="text-3xl font-extrabold flex items-center justify-between">
+                <span>View All</span>
+                <span className="text-xl">🔑</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">Phase 5 will add credential entries</p>
+            <CardContent className="pt-2">
+              <Button size="sm" className="w-full">
+                Open Credentials Vault →
+              </Button>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push("/dashboard/types")}>
             <CardHeader className="pb-2">
               <CardDescription>Categories & Templates</CardDescription>
-              <CardTitle className="text-3xl font-extrabold">Manage</CardTitle>
+              <CardTitle className="text-3xl font-extrabold flex items-center justify-between">
+                <span>Categories</span>
+                <span className="text-xl">📁</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="pt-1">
-              <Button size="sm" variant="secondary" className="w-full" onClick={() => router.push("/dashboard/types")}>
+            <CardContent className="pt-2">
+              <Button size="sm" variant="secondary" className="w-full">
                 Manage Categories →
               </Button>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push("/dashboard/trash")}>
             <CardHeader className="pb-2">
-              <CardDescription>Auto-Lock Timer</CardDescription>
-              <CardTitle className="text-3xl font-extrabold">15 min</CardTitle>
+              <CardDescription>Trash & Recovery</CardDescription>
+              <CardTitle className="text-3xl font-extrabold flex items-center justify-between">
+                <span>Trash Bin</span>
+                <span className="text-xl">🗑️</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">Inactivity protection active</p>
+            <CardContent className="pt-2">
+              <Button size="sm" variant="outline" className="w-full">
+                View Trash Bin →
+              </Button>
             </CardContent>
           </Card>
         </div>
