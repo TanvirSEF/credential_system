@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useVaultSessionStore } from "@/stores/vault-session-store";
 import { signOutAction } from "@/lib/actions/auth";
+import { getProfileAction } from "@/lib/actions/profile";
+import { Avatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Key,
@@ -14,6 +17,7 @@ import {
   Trash2,
   LayoutDashboard,
   ChevronRight,
+  Settings as SettingsIcon,
 } from "lucide-react";
 
 const navItems = [
@@ -22,12 +26,20 @@ const navItems = [
   { href: "/dashboard/documents", label: "Documents", icon: FileText },
   { href: "/dashboard/types", label: "Categories", icon: Folder },
   { href: "/dashboard/trash", label: "Trash Bin", icon: Trash2 },
+  { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 export function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const lockVault = useVaultSessionStore((s) => s.lockVault);
+  const [profile, setProfile] = useState<{ fullName: string; avatarUrl: string | null } | null>(null);
+
+  useEffect(() => {
+    getProfileAction().then((p) => {
+      if (p) setProfile({ fullName: p.fullName, avatarUrl: p.avatarUrl });
+    });
+  }, []);
 
   function handleLock() {
     lockVault();
@@ -78,6 +90,26 @@ export function DashboardSidebar() {
           );
         })}
       </nav>
+
+      {/* Account / profile shortcut */}
+      <Link
+        href="/dashboard/settings"
+        className="mx-3 mb-2 flex items-center gap-3 rounded-lg border-t border-border/40 pt-3 hover:bg-muted/50 transition-colors"
+      >
+        <Avatar
+          avatarUrl={profile?.avatarUrl}
+          name={profile?.fullName}
+          className="h-9 w-9 text-xs"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">
+            {profile?.fullName || "Account"}
+          </p>
+          <p className="truncate text-[11px] text-muted-foreground">
+            Profile & settings
+          </p>
+        </div>
+      </Link>
 
       {/* Bottom actions */}
       <div className="px-3 py-4 border-t border-border/40 space-y-1.5">

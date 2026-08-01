@@ -4,9 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { VaultGuard } from "@/components/vault-guard";
 import { useVaultSessionStore } from "@/stores/vault-session-store";
 import { decryptPayload, decryptFile } from "@/lib/crypto";
-import { fetchDocumentsAction, softDeleteDocumentAction } from "@/lib/actions/documents";
+import { fetchDocumentsAction, softDeleteDocumentAction, getDocumentDownloadUrlAction } from "@/lib/actions/documents";
 import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -71,16 +70,17 @@ function DocumentsContent() {
     setDownloadingId(doc.id);
 
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.storage
-        .from("vault-files")
-        .download(doc.storagePath);
-
-      if (error || !data) {
-        throw new Error(error?.message || "Failed to download encrypted file blob.");
+      const dl = await getDocumentDownloadUrlAction(doc.id);
+      if (dl.error || !dl.downloadUrl) {
+        throw new Error(dl.error || "Failed to get download URL.");
       }
 
-      const ciphertextBuffer = await data.arrayBuffer();
+      const resp = await fetch(dl.downloadUrl);
+      if (!resp.ok) {
+        throw new Error(`Failed to download encrypted file blob (${resp.status}).`);
+      }
+
+      const ciphertextBuffer = await resp.arrayBuffer();
       const decryptedBlob = await decryptFile(ciphertextBuffer, doc.metadata, vaultKey);
 
       const objectUrl = URL.createObjectURL(decryptedBlob);

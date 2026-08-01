@@ -2,8 +2,14 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { documents } from "@/db/schema";
+import { documents, vaults } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
+import {
+  r2KeyForDocument,
+  presignPutUrl,
+  presignGetUrl,
+  deleteObject,
+} from "@/lib/r2/client";
 
 export async function fetchDocumentsAction(vaultId: string) {
   const supabase = await createClient();
@@ -25,6 +31,54 @@ export async function fetchDocumentsAction(vaultId: string) {
     );
 
   return { error: null, documents: rows };
+}
+
+export async function createDocumentUploadUrlAction(vaultId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated." };
+  }
+
+  const owned = await db
+    .select({ id: vaults.id })
+    .from(vaults)
+    .where(and(eq(vaults.id, vaultId), eq(vaults.ownerId, user.id)));
+
+  if (owned.length === 0) {
+    return { error: "Vault not found." };
+  }
+
+  const storagePath = r2KeyForDocument(user.id);
+  const uploadUrl = await presignPutUrl(
+    storagePath,
+    "application/octet-stream",
+    120
+  );
+
+  return { error: null, storagePath, uploadUrl };
+}
+
+export async function getDocumentDownloadUrlAction(id: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated." };
+  }
+
+  const rows = await db
+    .select({ storagePath: documents.storagePath })
+    .from(documents)
+    .where(and(eq(documents.id, id), eq(documents.ownerId, user.id)));
+
+  if (rows.length === 0) {
+    return { error: "Document not found." };
+  }
+
+  const downloadUrl = await presignGetUrl(rows[0].storagePath, 120);
+  return { error: null, downloadUrl };
 }
 
 export async function createDocumentRecordAction(payload: {
@@ -92,14 +146,27 @@ export async function permanentDeleteDocumentAction(id: string) {
     return { error: "Not authenticated." };
   }
 
-  await db
-    .delete(documents)
-    .where(
-      and(
-        eq(documents.id, id),
-        eq(documents.ownerId, user.id)
-      )
-    );
+  const rows = await db
+    .select({ storagePath: documents.storagePath })
+    .from(documents)
+    .where(and(eq(documents.id, id), eq(documents.ownerId, user.id)));
+
+  if (rows.length > 0) {
+    try {
+      await deleteObject(rows[0].storagePath);
+    } catch (err) {
+      console.warn("R2 object delete failed:", err);
+    }
+
+    await db
+      .delete(documents)
+      .where(
+        and(
+          eq(documents.id, id),
+          eq(documents.ownerId, user.id)
+        )
+      );
+  }
 
   return { success: true };
 }

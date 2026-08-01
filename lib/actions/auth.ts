@@ -67,9 +67,11 @@ export async function getUserProfileAction() {
 
   const fullName = (user.user_metadata?.full_name as string) || "";
 
-  // Upsert profile record into PostgreSQL profiles table
+  // Upsert profile record into PostgreSQL profiles table, returning the row
+  // so we can include the current avatarUrl in the response.
+  let avatarUrl: string | null = null;
   try {
-    await db
+    const upserted = await db
       .insert(profiles)
       .values({
         id: user.id,
@@ -81,7 +83,10 @@ export async function getUserProfileAction() {
           fullName: fullName || user.email || "User",
           updatedAt: new Date(),
         },
-      });
+      })
+      .returning({ avatarUrl: profiles.avatarUrl });
+
+    avatarUrl = upserted[0]?.avatarUrl ?? null;
   } catch (err) {
     console.warn("Profile sync notice:", err);
   }
@@ -89,5 +94,6 @@ export async function getUserProfileAction() {
   return {
     email: user.email || "",
     fullName,
+    avatarUrl,
   };
 }

@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { createDocumentRecordAction } from "@/lib/actions/documents";
+import { createDocumentRecordAction, createDocumentUploadUrlAction } from "@/lib/actions/documents";
 import { encryptFile } from "@/lib/crypto/file-crypto";
 import { useVaultSessionStore } from "@/stores/vault-session-store";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,28 +47,28 @@ export function UploadDocumentDialog({ onUploaded }: UploadDocumentDialogProps) 
     setUploading(true);
 
     try {
-      // 1. Encrypt file client-side
       const encryptedData = await encryptFile(file, vaultKey, description);
 
-      // 2. Upload ciphertext to Supabase Private Bucket "vault-files"
-      const supabase = createClient();
-      const storagePath = `${vaultId}/${Date.now()}_${file.name}.enc`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("vault-files")
-        .upload(storagePath, encryptedData.ciphertextBuffer, {
-          contentType: "application/octet-stream",
-        });
-
-      if (uploadError) {
-        setError(`Storage Upload Error: ${uploadError.message}`);
+      const urlRes = await createDocumentUploadUrlAction(vaultId);
+      if (urlRes.error || !urlRes.uploadUrl || !urlRes.storagePath) {
+        setError(urlRes.error || "Failed to prepare upload.");
         return;
       }
 
-      // 3. Create document metadata record in PostgreSQL
+      const putRes = await fetch(urlRes.uploadUrl, {
+        method: "PUT",
+        body: encryptedData.ciphertextBuffer,
+        headers: { "Content-Type": "application/octet-stream" },
+      });
+
+      if (!putRes.ok) {
+        setError(`Storage Upload Error: ${putRes.status} ${putRes.statusText}`);
+        return;
+      }
+
       const res = await createDocumentRecordAction({
         vaultId,
-        storagePath,
+        storagePath: urlRes.storagePath,
         metadataCiphertext: encryptedData.metadataCiphertext,
         metadataIv: encryptedData.metadataIv,
         ciphertextSha256: encryptedData.ciphertextSha256,
