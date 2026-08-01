@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Check } from "lucide-react";
 
 export default function SetupWizardPage() {
   const router = useRouter();
@@ -190,8 +191,14 @@ export default function SetupWizardPage() {
             </div>
 
             <div className="rounded-lg border bg-muted/40 p-4 space-y-2 text-xs leading-relaxed text-muted-foreground">
-              <p>✔ All passwords, secrets, and files are encrypted before upload.</p>
-              <p>✔ If you forget your master password, only your <strong>Recovery Key</strong> can unlock your vault.</p>
+              <p className="flex items-center">
+                <Check className="h-4 w-4 text-green-500 mr-2 shrink-0" />
+                All passwords, secrets, and files are encrypted before upload.
+              </p>
+              <p className="flex items-center">
+                <Check className="h-4 w-4 text-green-500 mr-2 shrink-0" />
+                If you forget your master password, only your <strong>Recovery Key</strong> can unlock your vault.
+              </p>
             </div>
 
             <Button onClick={() => setStep(2)} className="w-full">
