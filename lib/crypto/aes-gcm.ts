@@ -111,7 +111,7 @@ export async function unwrapVaultKey(
     "raw",
     decryptedRawBuffer,
     "AES-GCM",
-    true,
+    false,
     ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
   );
 }

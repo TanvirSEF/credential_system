@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getUserVaultStatus } from "@/lib/actions/vault";
 import { useVaultSessionStore } from "@/stores/vault-session-store";
@@ -8,8 +8,10 @@ import { subscribeBroadcast } from "@/lib/storage/broadcast-channel";
 
 export function VaultGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isUnlocked, updateActivity, autoLockMinutes, lastActivityTimestamp, lockVault } =
-    useVaultSessionStore();
+  const isUnlocked = useVaultSessionStore((s) => s.isUnlocked);
+  const autoLockMinutes = useVaultSessionStore((s) => s.autoLockMinutes);
+  const lockVault = useVaultSessionStore((s) => s.lockVault);
+  const lastActivityRef = useRef(0);
 
   const [loading, setLoading] = useState(true);
 
@@ -29,7 +31,6 @@ export function VaultGuard({ children }: { children: React.ReactNode }) {
     verifyGuard();
   }, [router, isUnlocked]);
 
-  // Multi-tab broadcast channel listener
   useEffect(() => {
     const unsubscribe = subscribeBroadcast((msg) => {
       if (msg.type === "VAULT_LOCKED") {
@@ -40,19 +41,22 @@ export function VaultGuard({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, [lockVault, router]);
 
-  // Inactivity auto-lock listener
   useEffect(() => {
     if (!isUnlocked) return;
 
+    lastActivityRef.current = Date.now();
+
     const interval = setInterval(() => {
-      const elapsedMinutes = (Date.now() - lastActivityTimestamp) / (1000 * 60);
+      const elapsedMinutes = (Date.now() - lastActivityRef.current) / (1000 * 60);
       if (elapsedMinutes >= autoLockMinutes) {
         lockVault();
         router.push("/unlock");
       }
     }, 10000);
 
-    const handleUserActivity = () => updateActivity();
+    const handleUserActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
     window.addEventListener("mousemove", handleUserActivity);
     window.addEventListener("keydown", handleUserActivity);
 
@@ -61,9 +65,9 @@ export function VaultGuard({ children }: { children: React.ReactNode }) {
       window.removeEventListener("mousemove", handleUserActivity);
       window.removeEventListener("keydown", handleUserActivity);
     };
-  }, [isUnlocked, lastActivityTimestamp, autoLockMinutes, lockVault, updateActivity, router]);
+  }, [isUnlocked, autoLockMinutes, lockVault, router]);
 
-  if (loading) {
+  if (loading || !isUnlocked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
         Securing vault session...

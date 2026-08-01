@@ -1,9 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/db";
 import { vaults, vaultKeyEnvelopes, credentialTypes } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
+import { withRls } from "@/db/rls";
 import { KeyEnvelope } from "@/lib/crypto/types";
 
 export async function getUserVaultStatus() {
@@ -14,21 +14,28 @@ export async function getUserVaultStatus() {
     return { authenticated: false, hasVault: false };
   }
 
-  const userVaults = await db
-    .select()
-    .from(vaults)
-    .where(eq(vaults.ownerId, user.id));
+  const data = await withRls(user.id, async (tx) => {
+    const userVaults = await tx
+      .select()
+      .from(vaults)
+      .where(eq(vaults.ownerId, user.id));
 
-  if (userVaults.length === 0) {
+    if (userVaults.length === 0) return null;
+
+    const userVault = userVaults[0];
+    const envelopes = await tx
+      .select()
+      .from(vaultKeyEnvelopes)
+      .where(eq(vaultKeyEnvelopes.vaultId, userVault.id));
+
+    return { userVault, envelopes };
+  });
+
+  if (!data) {
     return { authenticated: true, user, hasVault: false };
   }
 
-  const userVault = userVaults[0];
-
-  const envelopes = await db
-    .select()
-    .from(vaultKeyEnvelopes)
-    .where(eq(vaultKeyEnvelopes.vaultId, userVault.id));
+  const { userVault, envelopes } = data;
 
   const masterEnvelopeRecord = envelopes.find((e) => e.envelopeType === "master");
   const recoveryEnvelopeRecord = envelopes.find((e) => e.envelopeType === "recovery");
@@ -89,28 +96,28 @@ export async function createVaultAndEnvelopesAction(payload: {
     return { error: "User not authenticated." };
   }
 
-  const existingVaults = await db
-    .select({ id: vaults.id })
-    .from(vaults)
-    .where(eq(vaults.ownerId, user.id));
+  const result = await withRls(user.id, async (tx) => {
+    const existingVaults = await tx
+      .select({ id: vaults.id })
+      .from(vaults)
+      .where(eq(vaults.ownerId, user.id));
 
-  if (existingVaults.length > 0) {
-    const completeVault = await db
-      .select({ id: vaultKeyEnvelopes.id })
-      .from(vaultKeyEnvelopes)
-      .where(
-        and(
-          inArray(vaultKeyEnvelopes.vaultId, existingVaults.map((v) => v.id)),
-          eq(vaultKeyEnvelopes.envelopeType, "master")
-        )
-      );
+    if (existingVaults.length > 0) {
+      const completeVault = await tx
+        .select({ id: vaultKeyEnvelopes.id })
+        .from(vaultKeyEnvelopes)
+        .where(
+          and(
+            inArray(vaultKeyEnvelopes.vaultId, existingVaults.map((v) => v.id)),
+            eq(vaultKeyEnvelopes.envelopeType, "master")
+          )
+        );
 
-    if (completeVault.length > 0) {
-      return { error: "A vault already exists for this account. Sign in and unlock it instead." };
+      if (completeVault.length > 0) {
+        return { error: "A vault already exists for this account. Sign in and unlock it instead." } as const;
+      }
     }
-  }
 
-  const newVaultId = await db.transaction(async (tx) => {
     await tx.delete(vaults).where(eq(vaults.ownerId, user.id));
 
     const [newVault] = await tx
@@ -166,8 +173,12 @@ export async function createVaultAndEnvelopesAction(payload: {
       );
     }
 
-    return newVault.id;
+    return { vaultId: newVault.id } as const;
   });
 
-  return { success: true, vaultId: newVaultId };
+  if ("error" in result) {
+    return result;
+  }
+
+  return { success: true, vaultId: result.vaultId };
 }

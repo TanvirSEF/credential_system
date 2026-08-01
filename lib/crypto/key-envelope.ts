@@ -2,6 +2,7 @@ import { encryptPayload, decryptPayload, generateVaultKey, unwrapVaultKey, wrapV
 import { createKdfParams, deriveKeyFromPassword, generateSalt, DEFAULT_PBKDF2_ITERATIONS } from "./kdf";
 import { KeyEnvelope, VerificationPayload } from "./types";
 import { base64UrlToBytes, bytesToBase64Url } from "./utils";
+import { zeroizeBuffer } from "./zeroization";
 
 export async function createMasterEnvelope(
   password: string,
@@ -34,7 +35,17 @@ export async function createMasterEnvelope(
     cryptoVersion: 1,
   };
 
-  return { envelope, vaultKey };
+  const rawVaultKey = await crypto.subtle.exportKey("raw", vaultKey);
+  const sessionVaultKey = await crypto.subtle.importKey(
+    "raw",
+    rawVaultKey,
+    "AES-GCM",
+    false,
+    ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
+  );
+  zeroizeBuffer(rawVaultKey);
+
+  return { envelope, vaultKey: sessionVaultKey };
 }
 
 export async function unlockVaultWithMasterPassword(

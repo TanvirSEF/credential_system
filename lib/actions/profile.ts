@@ -1,8 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/db";
 import { profiles } from "@/db/schema";
+import { withRls } from "@/db/rls";
 import {
   r2KeyForAvatar,
   presignPutUrl,
@@ -22,23 +22,22 @@ export async function getProfileAction() {
 
   const authFullName = (user.user_metadata?.full_name as string) || "";
 
-  const upserted = await db
-    .insert(profiles)
-    .values({
-      id: user.id,
-      fullName: authFullName || user.email || "User",
-    })
-    .onConflictDoUpdate({
-      target: profiles.id,
-      set: {
+  const upserted = await withRls(user.id, (tx) =>
+    tx
+      .insert(profiles)
+      .values({
+        id: user.id,
         fullName: authFullName || user.email || "User",
-        updatedAt: new Date(),
-      },
-    })
-    .returning({
-      fullName: profiles.fullName,
-      avatarUrl: profiles.avatarUrl,
-    });
+      })
+      .onConflictDoUpdate({
+        target: profiles.id,
+        set: { updatedAt: new Date() },
+      })
+      .returning({
+        fullName: profiles.fullName,
+        avatarUrl: profiles.avatarUrl,
+      })
+  );
 
   return {
     email: user.email || "",
@@ -80,17 +79,19 @@ export async function setAvatarAction(storagePath: string, publicUrl: string) {
 
   const authFullName = (user.user_metadata?.full_name as string) || "";
 
-  await db
-    .insert(profiles)
-    .values({
-      id: user.id,
-      fullName: authFullName || user.email || "User",
-      avatarUrl: publicUrl,
-    })
-    .onConflictDoUpdate({
-      target: profiles.id,
-      set: { avatarUrl: publicUrl, updatedAt: new Date() },
-    });
+  await withRls(user.id, (tx) =>
+    tx
+      .insert(profiles)
+      .values({
+        id: user.id,
+        fullName: authFullName || user.email || "User",
+        avatarUrl: publicUrl,
+      })
+      .onConflictDoUpdate({
+        target: profiles.id,
+        set: { avatarUrl: publicUrl, updatedAt: new Date() },
+      })
+  );
 
   return { success: true };
 }
@@ -105,13 +106,15 @@ export async function updateProfileNameAction(fullName: string) {
     return { error: "Name must be 1–80 characters." };
   }
 
-  await db
-    .insert(profiles)
-    .values({ id: user.id, fullName: name })
-    .onConflictDoUpdate({
-      target: profiles.id,
-      set: { fullName: name, updatedAt: new Date() },
-    });
+  await withRls(user.id, (tx) =>
+    tx
+      .insert(profiles)
+      .values({ id: user.id, fullName: name })
+      .onConflictDoUpdate({
+        target: profiles.id,
+        set: { fullName: name, updatedAt: new Date() },
+      })
+  );
 
   return { success: true };
 }

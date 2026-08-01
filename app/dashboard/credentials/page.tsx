@@ -136,8 +136,9 @@ function CredentialsContent() {
           updatedAt: r.updatedAt,
         }))
       );
-    } else if (cachedRows.length === 0) {
+    } else {
       setCredentialsList([]);
+      setCachedCredentials(vaultId, []);
     }
 
     setLoading(false);

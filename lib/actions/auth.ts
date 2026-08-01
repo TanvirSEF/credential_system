@@ -1,8 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/db";
 import { profiles } from "@/db/schema";
+import { withRls } from "@/db/rls";
 import { redirect } from "next/navigation";
 
 export async function loginAction(formData: FormData) {
@@ -20,7 +20,8 @@ export async function loginAction(formData: FormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    console.warn("Login failed:", error.message);
+    return { error: "Invalid email or password." };
   }
 
   return { success: true };
@@ -47,7 +48,8 @@ export async function registerAction(formData: FormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    console.warn("Sign up failed:", error.message);
+    return { error: "Could not create account. Please try again." };
   }
 
   return { success: true };
@@ -65,27 +67,26 @@ export async function getUserProfileAction() {
 
   if (!user) return null;
 
-  const fullName = (user.user_metadata?.full_name as string) || "";
+  const authFullName = (user.user_metadata?.full_name as string) || "";
 
-  // Upsert profile record into PostgreSQL profiles table, returning the row
-  // so we can include the current avatarUrl in the response.
+  let fullName = authFullName;
   let avatarUrl: string | null = null;
   try {
-    const upserted = await db
-      .insert(profiles)
-      .values({
-        id: user.id,
-        fullName: fullName || user.email || "User",
-      })
-      .onConflictDoUpdate({
-        target: profiles.id,
-        set: {
-          fullName: fullName || user.email || "User",
-          updatedAt: new Date(),
-        },
-      })
-      .returning({ avatarUrl: profiles.avatarUrl });
+    const upserted = await withRls(user.id, (tx) =>
+      tx
+        .insert(profiles)
+        .values({
+          id: user.id,
+          fullName: authFullName || user.email || "User",
+        })
+        .onConflictDoUpdate({
+          target: profiles.id,
+          set: { updatedAt: new Date() },
+        })
+        .returning({ fullName: profiles.fullName, avatarUrl: profiles.avatarUrl })
+    );
 
+    fullName = upserted[0]?.fullName ?? authFullName;
     avatarUrl = upserted[0]?.avatarUrl ?? null;
   } catch (err) {
     console.warn("Profile sync notice:", err);

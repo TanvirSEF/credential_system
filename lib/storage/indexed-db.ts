@@ -53,13 +53,23 @@ function openDB(): Promise<IDBDatabase> {
 export async function setCachedCredentials(vaultId: string, rows: CachedCredentialRow[]): Promise<void> {
   try {
     const db = await openDB();
-    const tx = db.transaction(["credentials_cache"], "readwrite");
-    const store = tx.objectStore("credentials_cache");
-
-    store.clear();
-    for (const row of rows) {
-      store.put(row);
-    }
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(["credentials_cache"], "readwrite");
+      const store = tx.objectStore("credentials_cache");
+      const req = store.openCursor();
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (cursor) {
+          if (cursor.value.vaultId === vaultId) cursor.delete();
+          cursor.continue();
+        } else {
+          for (const row of rows) store.put(row);
+        }
+      };
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
   } catch (err) {
     console.warn("IndexedDB cache save warning:", err);
   }
@@ -87,13 +97,23 @@ export async function getCachedCredentials(vaultId: string): Promise<CachedCrede
 export async function setCachedTypes(vaultId: string, rows: CachedTypeRow[]): Promise<void> {
   try {
     const db = await openDB();
-    const tx = db.transaction(["types_cache"], "readwrite");
-    const store = tx.objectStore("types_cache");
-
-    store.clear();
-    for (const row of rows) {
-      store.put(row);
-    }
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(["types_cache"], "readwrite");
+      const store = tx.objectStore("types_cache");
+      const req = store.openCursor();
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (cursor) {
+          if (cursor.value.vaultId === vaultId) cursor.delete();
+          cursor.continue();
+        } else {
+          for (const row of rows) store.put(row);
+        }
+      };
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
   } catch (err) {
     console.warn("IndexedDB cache save warning:", err);
   }

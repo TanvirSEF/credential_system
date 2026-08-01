@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,15 @@ import { Badge } from "@/components/ui/badge";
 import { softDeleteCredentialAction } from "@/lib/actions/credentials";
 import { DecryptedCredential } from "@/lib/types/credential";
 import { Eye, EyeOff, Copy, Check, ExternalLink, Star, Trash2 } from "lucide-react";
+
+function isSafeHref(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 export function CredentialDetailDialog({
   credential,
@@ -30,6 +39,13 @@ export function CredentialDetailDialog({
 }) {
   const [revealedFields, setRevealedFields] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const clearClipboardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (clearClipboardTimer.current) clearTimeout(clearClipboardTimer.current);
+    };
+  }, []);
 
   if (!credential) return null;
 
@@ -44,6 +60,11 @@ export function CredentialDetailDialog({
     navigator.clipboard.writeText(textToCopy);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2500);
+
+    if (clearClipboardTimer.current) clearTimeout(clearClipboardTimer.current);
+    clearClipboardTimer.current = setTimeout(() => {
+      navigator.clipboard.writeText("").catch(() => {});
+    }, 20000);
   }
 
   async function handleDelete() {
@@ -77,14 +98,20 @@ export function CredentialDetailDialog({
             <div className="space-y-1">
               <span className="text-xs font-semibold text-muted-foreground uppercase">Website</span>
               <div>
-                <a
-                  href={credential.payload.websiteUrls[0]}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm font-medium text-primary hover:underline break-all inline-flex items-center gap-1"
-                >
-                  {credential.payload.websiteUrls[0]} <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+                {isSafeHref(credential.payload.websiteUrls[0]) ? (
+                  <a
+                    href={credential.payload.websiteUrls[0]}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-medium text-primary hover:underline break-all inline-flex items-center gap-1"
+                  >
+                    {credential.payload.websiteUrls[0]} <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                ) : (
+                  <span className="text-sm font-medium text-muted-foreground break-all">
+                    {credential.payload.websiteUrls[0]}
+                  </span>
+                )}
               </div>
             </div>
           )}
