@@ -39,7 +39,7 @@ export function DashboardSidebar() {
     getProfileAction().then((p) => {
       if (p) setProfile({ fullName: p.fullName, avatarUrl: p.avatarUrl });
     });
-  }, []);
+  }, [pathname]);
 
   function handleLock() {
     lockVault();
