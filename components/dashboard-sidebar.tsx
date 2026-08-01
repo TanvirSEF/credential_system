@@ -7,7 +7,7 @@ import { useVaultSessionStore } from "@/stores/vault-session-store";
 import { signOutAction } from "@/lib/actions/auth";
 import { getProfileAction } from "@/lib/actions/profile";
 import { Avatar } from "@/components/avatar";
-import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   Key,
   FileText,
@@ -55,14 +55,8 @@ export function DashboardSidebar() {
     <aside className="hidden md:flex md:w-[260px] lg:w-[280px] flex-col border-r border-border/50 bg-card/30 backdrop-blur-sm h-screen sticky top-0">
       {/* Brand */}
       <div className="px-5 py-5 border-b border-border/40">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-blue-500/25 ring-1 ring-white/10">
-            <span className="text-[12px] font-black text-white tracking-tighter" style={{ letterSpacing: "-0.05em" }}>SP</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-extrabold tracking-tight leading-none">Secure Personal Vault</span>
-            <span className="text-[9px] font-semibold text-blue-400/70 tracking-widest uppercase mt-0.5">Zero-Knowledge</span>
-          </div>
+        <Link href="/dashboard" aria-label="Secure Personal Vault dashboard">
+          <BrandLogo preload className="w-full" />
         </Link>
       </div>
 
@@ -132,64 +126,3 @@ export function DashboardSidebar() {
   );
 }
 
-/* ── Mobile header (visible on sm only) ── */
-export function DashboardMobileHeader() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const lockVault = useVaultSessionStore((s) => s.lockVault);
-
-  function handleLock() {
-    lockVault();
-    router.push("/unlock");
-  }
-
-  async function handleSignOut() {
-    lockVault();
-    await signOutAction();
-  }
-
-  return (
-    <header className="md:hidden sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl px-4 py-3">
-      <div className="flex items-center justify-between">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-blue-500/25">
-            <span className="text-[11px] font-black text-white tracking-tighter" style={{ letterSpacing: "-0.05em" }}>SP</span>
-          </div>
-          <span className="text-sm font-extrabold tracking-tight">SPV</span>
-        </Link>
-
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLock}>
-            <Lock className="h-4 w-4 text-amber-400" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSignOut}>
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Mobile nav tabs */}
-      <div className="flex items-center gap-1 mt-3 -mx-1 overflow-x-auto scrollbar-none pb-0.5">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`
-                flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all
-                ${isActive
-                  ? "bg-blue-500/15 text-blue-400 border border-blue-500/20"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                }
-              `}
-            >
-              <item.icon className="h-3.5 w-3.5" />
-              {item.label}
-            </Link>
-          );
-        })}
-      </div>
-    </header>
-  );
-}

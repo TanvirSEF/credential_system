@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BrandLogo } from "@/components/brand-logo";
 import { ArrowLeft, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
@@ -52,15 +53,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 max-w-md space-y-8 text-white">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/20">
-              <span className="text-lg font-black tracking-tighter" style={{ letterSpacing: "-0.05em" }}>SP</span>
-            </div>
-            <div>
-              <p className="font-extrabold text-lg leading-none tracking-tight">Secure Personal Vault</p>
-              <p className="text-[10px] font-semibold text-white/60 tracking-widest uppercase mt-0.5">Zero-Knowledge</p>
-            </div>
-          </div>
+          <BrandLogo preload />
 
           <div className="space-y-5">
             <h2 className="text-3xl xl:text-4xl font-extrabold tracking-tight leading-tight">
@@ -104,12 +97,7 @@ export default function LoginPage() {
             {/* Header */}
             <div className="space-y-2">
               {/* Mobile-only logo */}
-              <div className="flex items-center gap-2.5 mb-6 lg:hidden">
-                <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/25 ring-1 ring-white/10">
-                  <span className="text-[13px] font-black text-white tracking-tighter" style={{ letterSpacing: "-0.05em" }}>SP</span>
-                </div>
-                <span className="text-sm font-bold text-muted-foreground">Secure Personal Vault</span>
-              </div>
+              <BrandLogo preload className="mb-6 w-[210px] lg:hidden" />
 
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-heading">Welcome back</h1>
               <p className="text-sm text-muted-foreground">Sign in to unlock your encrypted vault</p>

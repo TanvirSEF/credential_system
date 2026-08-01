@@ -1,4 +1,9 @@
 @import "tailwindcss";
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 

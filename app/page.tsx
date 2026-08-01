@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   Shield,
   Lock,
@@ -36,26 +37,19 @@ export default function LandingPage() {
       </div>
 
       {/* Navigation */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/70 backdrop-blur-xl px-6 py-3.5 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/30 ring-1 ring-white/10">
-            <span className="text-[15px] font-black text-white tracking-tighter leading-none" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.05em" }}>SP</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-base font-extrabold tracking-tight font-heading bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent leading-none">
-              Secure Personal Vault
-            </span>
-            <span className="text-[10px] font-semibold text-blue-400/80 tracking-widest uppercase mt-0.5">
-              Zero-Knowledge Encryption
-            </span>
-          </div>
+      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border/50 bg-background/70 px-4 py-2.5 backdrop-blur-xl sm:px-6">
+        <Link href="/" aria-label="Secure Personal Vault home">
+          <BrandLogo
+            preload
+            className="h-12 w-[175px] min-[480px]:w-[270px] [&>img]:w-[250px] min-[480px]:[&>img]:w-[340px]"
+          />
         </Link>
 
         <nav className="flex items-center gap-2">
           <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs font-semibold" })}>
             Sign In
           </Link>
-          <Link href="/register" className={buttonVariants({ size: "sm", className: "text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-600/25 border-0" })}>
+          <Link href="/register" className={buttonVariants({ size: "sm" })}>
             Get Started
           </Link>
         </nav>
@@ -89,10 +83,10 @@ export default function LandingPage() {
 
           {/* CTA row */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            <Link href="/register" className={buttonVariants({ size: "lg", className: "w-full sm:w-auto px-8 font-bold text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-xl shadow-blue-600/25 border-0" })}>
+            <Link href="/register" className={buttonVariants({ size: "lg", className: "w-full sm:w-auto" })}>
               Create Free Vault <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
-            <Link href="/login" className={buttonVariants({ variant: "outline", size: "lg", className: "w-full sm:w-auto px-8 text-sm border-border/60" })}>
+            <Link href="/login" className={buttonVariants({ variant: "outline", size: "lg", className: "w-full sm:w-auto" })}>
               Unlock Existing Vault
             </Link>
           </div>
@@ -292,7 +286,7 @@ export default function LandingPage() {
           <p className="text-muted-foreground text-sm">
             Create your encrypted vault in under 60 seconds. No credit card required.
           </p>
-          <Link href="/register" className={buttonVariants({ size: "lg", className: "px-10 font-bold text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-xl shadow-blue-600/25 border-0" })}>
+          <Link href="/register" className={buttonVariants({ size: "lg" })}>
             Get Started Free <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </div>

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { VaultGuard } from "@/components/vault-guard";
-import { useVaultSessionStore } from "@/stores/vault-session-store";
 import { getUserProfileAction } from "@/lib/actions/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,11 +39,11 @@ function DashboardContent() {
   })();
 
   return (
-    <div className="p-6 lg:p-8 space-y-8 max-w-[1200px]">
+    <div className="mx-auto max-w-[1200px] space-y-6 px-4 py-5 sm:space-y-8 sm:p-6 lg:p-8">
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-heading">
+          <h1 className="font-heading text-[1.65rem] font-extrabold leading-tight tracking-tight sm:text-3xl">
             {greeting}{profile?.fullName ? `, ${profile.fullName}` : ""}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -58,7 +57,7 @@ function DashboardContent() {
       </div>
 
       {/* ── Stat cards row ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           label="Credentials"
           description="Passwords & API keys"
@@ -98,7 +97,7 @@ function DashboardContent() {
       </div>
 
       {/* ── Main content grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
         {/* Quick actions — 2 cols */}
         <Card className="lg:col-span-2 border-border/50 bg-card/40 backdrop-blur-sm">
           <CardHeader>
@@ -196,7 +195,7 @@ function StatCard({
   return (
     <button
       onClick={onClick}
-      className={`group relative text-left rounded-xl border ${borderColor} bg-gradient-to-br ${gradient} p-5 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`}
+      className={`group relative min-w-0 rounded-xl border ${borderColor} bg-gradient-to-br ${gradient} p-4 text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] sm:p-5`}
     >
       <div className="flex items-center justify-between mb-3">
         <div className={`h-9 w-9 rounded-lg bg-background/50 border border-border/30 flex items-center justify-center ${iconColor}`}>
