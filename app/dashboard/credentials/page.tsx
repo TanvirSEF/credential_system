@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, Trash2, Star, ExternalLink, Search } from "lucide-react";
 import { DecryptedCredential, DecryptedCredentialPayload } from "@/lib/types/credential";
 import { DecryptedCredentialType, CredentialTypePayload } from "@/lib/types/credential-template";
 
@@ -39,7 +40,6 @@ function CredentialsContent() {
     if (!vaultId || !vaultKey) return;
     setLoading(true);
 
-    // Fetch Types
     const typesRes = await fetchCredentialTypesAction(vaultId);
     if (typesRes.types && typesRes.types.length > 0) {
       const decryptedTypes = await Promise.all(
@@ -66,7 +66,6 @@ function CredentialsContent() {
       setTypes([]);
     }
 
-    // Fetch Credentials
     const credsRes = await fetchCredentialsAction(vaultId);
     if (credsRes.credentials && credsRes.credentials.length > 0) {
       const decryptedCreds = await Promise.all(
@@ -133,8 +132,8 @@ function CredentialsContent() {
       {/* Header */}
       <header className="border-b bg-card px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-sm font-semibold text-muted-foreground hover:text-foreground">
-            ← Dashboard
+          <Link href="/dashboard" className="text-sm font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <ArrowLeft className="h-4 w-4" /> Dashboard
           </Link>
           <span className="text-muted-foreground">/</span>
           <h1 className="text-lg font-bold">Encrypted Credentials</h1>
@@ -142,7 +141,7 @@ function CredentialsContent() {
 
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/trash")}>
-            🗑️ Trash
+            <Trash2 className="h-4 w-4 mr-1.5" /> Trash
           </Button>
 
           <CreateCredentialDialog
@@ -160,12 +159,14 @@ function CredentialsContent() {
       <main className="max-w-6xl mx-auto p-6 space-y-6">
         {/* Search Bar & Filters */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-xl border shadow-sm">
-          <div className="w-full md:w-1/2">
+          <div className="relative w-full md:w-1/2">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="🔍 Search titles, usernames, websites, or tags in memory..."
+              placeholder="Search titles, usernames, websites, or tags in memory..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
             />
           </div>
 
@@ -188,7 +189,7 @@ function CredentialsContent() {
               size="sm"
               onClick={() => setFavoritesOnly(!favoritesOnly)}
             >
-              ⭐ Favorites
+              <Star className="h-4 w-4 mr-1.5 fill-current" /> Favorites
             </Button>
           </div>
         </div>
@@ -225,7 +226,7 @@ function CredentialsContent() {
                     <CardTitle className="text-base font-bold truncate">
                       {item.payload.title}
                     </CardTitle>
-                    {item.payload.favorite && <span className="text-sm">⭐</span>}
+                    {item.payload.favorite && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
                   </div>
                   {item.payload.subtitle && (
                     <CardDescription className="truncate text-xs font-mono">
@@ -236,8 +237,8 @@ function CredentialsContent() {
 
                 <CardContent className="space-y-3 pt-0">
                   {item.payload.websiteUrls && item.payload.websiteUrls.length > 0 && (
-                    <div className="text-xs text-primary truncate">
-                      🌐 {item.payload.websiteUrls[0]}
+                    <div className="text-xs text-primary truncate flex items-center gap-1">
+                      <ExternalLink className="h-3 w-3" /> {item.payload.websiteUrls[0]}
                     </div>
                   )}
 

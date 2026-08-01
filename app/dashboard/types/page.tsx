@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { ArrowLeft, Folder, Lock } from "lucide-react";
 import { DecryptedCredentialType, CredentialTypePayload } from "@/lib/types/credential-template";
 
 function TypesDashboardContent() {
@@ -70,8 +71,8 @@ function TypesDashboardContent() {
       {/* Navigation Header */}
       <header className="border-b bg-card px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-sm font-semibold text-muted-foreground hover:text-foreground">
-            ← Dashboard
+          <Link href="/dashboard" className="text-sm font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <ArrowLeft className="h-4 w-4" /> Dashboard
           </Link>
           <span className="text-muted-foreground">/</span>
           <h1 className="text-lg font-bold">Category Types & Templates</h1>
@@ -114,7 +115,8 @@ function TypesDashboardContent() {
                 <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                   <div className="space-y-1">
                     <CardTitle className="text-lg font-bold flex items-center gap-2">
-                      <span>📁</span> {type.payload.name}
+                      <Folder className="h-5 w-5 text-primary" />
+                      <span>{type.payload.name}</span>
                     </CardTitle>
                     {type.parentId && (
                       <Badge variant="secondary" className="text-[10px]">
@@ -145,7 +147,7 @@ function TypesDashboardContent() {
                     <div className="flex flex-wrap gap-2">
                       {type.payload.fields.map((f) => (
                         <Badge key={f.id} variant="outline" className="text-xs flex items-center gap-1">
-                          {f.secret && <span>🔒</span>}
+                          {f.secret && <Lock className="h-3 w-3 text-muted-foreground" />}
                           <span>{f.label}</span>
                           <span className="text-[10px] text-muted-foreground">({f.type})</span>
                         </Badge>

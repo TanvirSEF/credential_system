@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { ArrowLeft, RefreshCw, Trash2 } from "lucide-react";
 import { DecryptedCredential, DecryptedCredentialPayload } from "@/lib/types/credential";
 
 function TrashDashboardContent() {
@@ -75,8 +76,8 @@ function TrashDashboardContent() {
       {/* Header */}
       <header className="border-b bg-card px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard/credentials" className="text-sm font-semibold text-muted-foreground hover:text-foreground">
-            ← Credentials
+          <Link href="/dashboard/credentials" className="text-sm font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <ArrowLeft className="h-4 w-4" /> Credentials
           </Link>
           <span className="text-muted-foreground">/</span>
           <h1 className="text-lg font-bold">Trash & Recovery</h1>
@@ -131,10 +132,10 @@ function TrashDashboardContent() {
 
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => handleRestore(item.id)}>
-                      ↩ Restore
+                      <RefreshCw className="h-4 w-4 mr-1.5" /> Restore
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => handlePermanentDelete(item.id)}>
-                      Purge
+                      <Trash2 className="h-4 w-4 mr-1.5" /> Purge
                     </Button>
                   </div>
                 </CardContent>

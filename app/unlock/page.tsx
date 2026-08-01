@@ -16,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Lock } from "lucide-react";
 import { KeyEnvelope } from "@/lib/crypto/types";
 
 export default function UnlockVaultPage() {
@@ -91,8 +92,8 @@ export default function UnlockVaultPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary text-xl">
-            🔒
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Lock className="h-6 w-6" />
           </div>
           <CardTitle className="text-2xl font-bold">Vault Locked</CardTitle>
           <CardDescription>

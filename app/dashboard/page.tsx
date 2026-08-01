@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { Shield, Key, FileText, Folder, Lock, LogOut, Trash2 } from "lucide-react";
 
 function DashboardContent() {
   const router = useRouter();
@@ -22,8 +23,8 @@ function DashboardContent() {
       {/* Header */}
       <header className="border-b bg-card px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
-            🛡️
+          <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+            <Shield className="h-5 w-5 text-primary" />
           </div>
           <div>
             <h1 className="text-lg font-bold">Secure Personal Vault</h1>
@@ -33,17 +34,20 @@ function DashboardContent() {
 
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/credentials")}>
-            🔑 Credentials
+            <Key className="h-4 w-4 mr-1.5" /> Credentials
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/documents")}>
+            <FileText className="h-4 w-4 mr-1.5" /> Documents
           </Button>
           <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/types")}>
-            📁 Categories
+            <Folder className="h-4 w-4 mr-1.5" /> Categories
           </Button>
           <Button variant="outline" size="sm" onClick={handleLock}>
-            🔒 Lock Vault
+            <Lock className="h-4 w-4 mr-1.5" /> Lock Vault
           </Button>
           <form action={signOutAction}>
             <Button variant="ghost" size="sm" type="submit">
-              Sign Out
+              <LogOut className="h-4 w-4 mr-1.5" /> Sign Out
             </Button>
           </form>
         </div>
@@ -65,18 +69,33 @@ function DashboardContent() {
           </CardHeader>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push("/dashboard/credentials")}>
             <CardHeader className="pb-2">
               <CardDescription>Encrypted Credentials</CardDescription>
-              <CardTitle className="text-3xl font-extrabold flex items-center justify-between">
-                <span>View All</span>
-                <span className="text-xl">🔑</span>
+              <CardTitle className="text-2xl font-extrabold flex items-center justify-between">
+                <span>Credentials</span>
+                <Key className="h-6 w-6 text-primary" />
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-2">
               <Button size="sm" className="w-full">
-                Open Credentials Vault →
+                Open Vault →
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push("/dashboard/documents")}>
+            <CardHeader className="pb-2">
+              <CardDescription>Document Vault</CardDescription>
+              <CardTitle className="text-2xl font-extrabold flex items-center justify-between">
+                <span>Documents</span>
+                <FileText className="h-6 w-6 text-primary" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2">
+              <Button size="sm" variant="secondary" className="w-full">
+                Open Documents →
               </Button>
             </CardContent>
           </Card>
@@ -84,9 +103,9 @@ function DashboardContent() {
           <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push("/dashboard/types")}>
             <CardHeader className="pb-2">
               <CardDescription>Categories & Templates</CardDescription>
-              <CardTitle className="text-3xl font-extrabold flex items-center justify-between">
+              <CardTitle className="text-2xl font-extrabold flex items-center justify-between">
                 <span>Categories</span>
-                <span className="text-xl">📁</span>
+                <Folder className="h-6 w-6 text-primary" />
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-2">
@@ -99,9 +118,9 @@ function DashboardContent() {
           <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push("/dashboard/trash")}>
             <CardHeader className="pb-2">
               <CardDescription>Trash & Recovery</CardDescription>
-              <CardTitle className="text-3xl font-extrabold flex items-center justify-between">
+              <CardTitle className="text-2xl font-extrabold flex items-center justify-between">
                 <span>Trash Bin</span>
-                <span className="text-xl">🗑️</span>
+                <Trash2 className="h-6 w-6 text-primary" />
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-2">

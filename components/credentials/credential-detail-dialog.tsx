@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { softDeleteCredentialAction } from "@/lib/actions/credentials";
 import { DecryptedCredential } from "@/lib/types/credential";
+import { Eye, EyeOff, Copy, Check, ExternalLink, Star, Trash2 } from "lucide-react";
 
 export function CredentialDetailDialog({
   credential,
@@ -59,7 +60,11 @@ export function CredentialDetailDialog({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold">{credential.payload.title}</DialogTitle>
-            {credential.payload.favorite && <Badge variant="secondary">⭐ Favorite</Badge>}
+            {credential.payload.favorite && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /> Favorite
+              </Badge>
+            )}
           </div>
           {credential.payload.subtitle && (
             <DialogDescription>{credential.payload.subtitle}</DialogDescription>
@@ -76,9 +81,9 @@ export function CredentialDetailDialog({
                   href={credential.payload.websiteUrls[0]}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm font-medium text-primary hover:underline break-all"
+                  className="text-sm font-medium text-primary hover:underline break-all inline-flex items-center gap-1"
                 >
-                  {credential.payload.websiteUrls[0]} ↗
+                  {credential.payload.websiteUrls[0]} <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </div>
             </div>
@@ -108,7 +113,8 @@ export function CredentialDetailDialog({
                             onClick={() => toggleReveal(f.id)}
                             className="text-xs h-7 px-2"
                           >
-                            {isRevealed ? "👁️ Hide" : "👁️ Reveal"}
+                            {isRevealed ? <EyeOff className="h-3.5 w-3.5 mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
+                            {isRevealed ? "Hide" : "Reveal"}
                           </Button>
                         )}
                         <Button
@@ -117,7 +123,15 @@ export function CredentialDetailDialog({
                           onClick={() => handleCopy(f.id, f.value)}
                           className="text-xs h-7 px-2"
                         >
-                          {copiedId === f.id ? "Copied!" : "Copy"}
+                          {copiedId === f.id ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 mr-1 text-green-500" /> Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5 mr-1" /> Copy
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -151,7 +165,7 @@ export function CredentialDetailDialog({
 
         <DialogFooter className="flex items-center justify-between border-t pt-4">
           <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
-            Move to Trash
+            <Trash2 className="h-4 w-4 mr-1.5" /> Move to Trash
           </Button>
 
           <Button

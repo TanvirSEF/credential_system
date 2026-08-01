@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Trash2 } from "lucide-react";
 import { DecryptedCredentialType, FieldType, TemplateField } from "@/lib/types/credential-template";
 
 export function CreateTypeDialog({
@@ -215,9 +216,9 @@ export function CreateTypeDialog({
                         variant="ghost"
                         size="sm"
                         onClick={() => removeField(field.id)}
-                        className="text-destructive"
+                        className="text-destructive p-2"
                       >
-                        ✕
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
 

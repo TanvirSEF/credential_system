@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Trash2 } from "lucide-react";
 import { DecryptedCredentialType, FieldType } from "@/lib/types/credential-template";
 import { CredentialField, DecryptedCredential, DecryptedCredentialPayload } from "@/lib/types/credential";
 
@@ -50,7 +51,6 @@ export function CreateCredentialDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Populate when editing
   useEffect(() => {
     if (editCredential) {
       setTitle(editCredential.payload.title || "");
@@ -65,7 +65,6 @@ export function CreateCredentialDialog({
     }
   }, [editCredential]);
 
-  // When category selected, auto-populate template fields if creating new
   function handleTypeChange(typeId: string) {
     setSelectedTypeId(typeId);
     if (!editCredential && typeId !== "none") {
@@ -291,9 +290,9 @@ export function CreateCredentialDialog({
                         variant="ghost"
                         size="sm"
                         onClick={() => removeField(field.id)}
-                        className="text-destructive"
+                        className="text-destructive p-2"
                       >
-                        ✕
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
 
@@ -343,7 +342,7 @@ export function CreateCredentialDialog({
                   checked={favorite}
                   onChange={(e) => setFavorite(e.target.checked)}
                 />
-                Mark as Favorite ⭐
+                Mark as Favorite
               </label>
             </div>
           </div>
