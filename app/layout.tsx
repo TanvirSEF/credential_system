@@ -36,7 +36,10 @@ export default function RootLayout({
         fontMono.variable
       )}
     >
-      <body className="min-h-screen bg-background font-sans text-foreground">
+      <body
+        suppressHydrationWarning
+        className="min-h-screen bg-background font-sans text-foreground"
+      >
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
