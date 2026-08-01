@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { vaults, vaultKeyEnvelopes, credentialTypes } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { KeyEnvelope } from "@/lib/crypto/types";
 
 export async function getUserVaultStatus() {
@@ -33,9 +33,7 @@ export async function getUserVaultStatus() {
   const masterEnvelopeRecord = envelopes.find((e) => e.envelopeType === "master");
   const recoveryEnvelopeRecord = envelopes.find((e) => e.envelopeType === "recovery");
 
-  // If envelopes are missing due to a previous partial setup error, clean up the incomplete vault so the user can complete Setup Wizard freshly
-  if (!masterEnvelopeRecord || !recoveryEnvelopeRecord) {
-    await db.delete(vaults).where(eq(vaults.id, userVault.id));
+  if (!masterEnvelopeRecord) {
     return { authenticated: true, user, hasVault: false };
   }
 
@@ -50,16 +48,18 @@ export async function getUserVaultStatus() {
     cryptoVersion: masterEnvelopeRecord.cryptoVersion,
   };
 
-  const recoveryEnvelope: KeyEnvelope = {
-    wrappedKey: recoveryEnvelopeRecord.wrappedKey,
-    iv: recoveryEnvelopeRecord.iv,
-    salt: recoveryEnvelopeRecord.salt,
-    kdfName: recoveryEnvelopeRecord.kdfName as any,
-    kdfParams: recoveryEnvelopeRecord.kdfParams as any,
-    verificationCiphertext: recoveryEnvelopeRecord.verificationCiphertext || undefined,
-    verificationIv: recoveryEnvelopeRecord.verificationIv || undefined,
-    cryptoVersion: recoveryEnvelopeRecord.cryptoVersion,
-  };
+  const recoveryEnvelope: KeyEnvelope | undefined = recoveryEnvelopeRecord
+    ? {
+        wrappedKey: recoveryEnvelopeRecord.wrappedKey,
+        iv: recoveryEnvelopeRecord.iv,
+        salt: recoveryEnvelopeRecord.salt,
+        kdfName: recoveryEnvelopeRecord.kdfName as any,
+        kdfParams: recoveryEnvelopeRecord.kdfParams as any,
+        verificationCiphertext: recoveryEnvelopeRecord.verificationCiphertext || undefined,
+        verificationIv: recoveryEnvelopeRecord.verificationIv || undefined,
+        cryptoVersion: recoveryEnvelopeRecord.cryptoVersion,
+      }
+    : undefined;
 
   return {
     authenticated: true,
@@ -89,63 +89,85 @@ export async function createVaultAndEnvelopesAction(payload: {
     return { error: "User not authenticated." };
   }
 
-  // Ensure any orphaned incomplete vault for this user is deleted before creating new vault
-  await db.delete(vaults).where(eq(vaults.ownerId, user.id));
+  const existingVaults = await db
+    .select({ id: vaults.id })
+    .from(vaults)
+    .where(eq(vaults.ownerId, user.id));
 
-  const newVaultList = await db
-    .insert(vaults)
-    .values({
-      ownerId: user.id,
-      nameCiphertext: payload.nameCiphertext,
-      nameIv: payload.nameIv,
-      cryptoVersion: 1,
-    })
-    .returning();
+  if (existingVaults.length > 0) {
+    const completeVault = await db
+      .select({ id: vaultKeyEnvelopes.id })
+      .from(vaultKeyEnvelopes)
+      .where(
+        and(
+          inArray(vaultKeyEnvelopes.vaultId, existingVaults.map((v) => v.id)),
+          eq(vaultKeyEnvelopes.envelopeType, "master")
+        )
+      );
 
-  const newVault = newVaultList[0];
-
-  await db.insert(vaultKeyEnvelopes).values([
-    {
-      vaultId: newVault.id,
-      ownerId: user.id,
-      envelopeType: "master",
-      wrappedKey: payload.masterEnvelope.wrappedKey,
-      iv: payload.masterEnvelope.iv,
-      salt: payload.masterEnvelope.salt,
-      kdfName: payload.masterEnvelope.kdfName,
-      kdfParams: payload.masterEnvelope.kdfParams,
-      verificationCiphertext: payload.masterEnvelope.verificationCiphertext,
-      verificationIv: payload.masterEnvelope.verificationIv,
-      cryptoVersion: 1,
-    },
-    {
-      vaultId: newVault.id,
-      ownerId: user.id,
-      envelopeType: "recovery",
-      wrappedKey: payload.recoveryEnvelope.wrappedKey,
-      iv: payload.recoveryEnvelope.iv,
-      salt: payload.recoveryEnvelope.salt,
-      kdfName: payload.recoveryEnvelope.kdfName,
-      kdfParams: payload.recoveryEnvelope.kdfParams,
-      verificationCiphertext: payload.recoveryEnvelope.verificationCiphertext,
-      verificationIv: payload.recoveryEnvelope.verificationIv,
-      cryptoVersion: 1,
-    },
-  ]);
-
-  if (payload.defaultTypes.length > 0) {
-    await db.insert(credentialTypes).values(
-      payload.defaultTypes.map((dt) => ({
-        vaultId: newVault.id,
-        ownerId: user.id,
-        payloadCiphertext: dt.payloadCiphertext,
-        iv: dt.iv,
-        sortOrder: dt.sortOrder,
-        cryptoVersion: 1,
-        schemaVersion: 1,
-      }))
-    );
+    if (completeVault.length > 0) {
+      return { error: "A vault already exists for this account. Sign in and unlock it instead." };
+    }
   }
 
-  return { success: true, vaultId: newVault.id };
+  const newVaultId = await db.transaction(async (tx) => {
+    await tx.delete(vaults).where(eq(vaults.ownerId, user.id));
+
+    const [newVault] = await tx
+      .insert(vaults)
+      .values({
+        ownerId: user.id,
+        nameCiphertext: payload.nameCiphertext,
+        nameIv: payload.nameIv,
+        cryptoVersion: 1,
+      })
+      .returning({ id: vaults.id });
+
+    await tx.insert(vaultKeyEnvelopes).values([
+      {
+        vaultId: newVault.id,
+        ownerId: user.id,
+        envelopeType: "master",
+        wrappedKey: payload.masterEnvelope.wrappedKey,
+        iv: payload.masterEnvelope.iv,
+        salt: payload.masterEnvelope.salt,
+        kdfName: payload.masterEnvelope.kdfName,
+        kdfParams: payload.masterEnvelope.kdfParams,
+        verificationCiphertext: payload.masterEnvelope.verificationCiphertext,
+        verificationIv: payload.masterEnvelope.verificationIv,
+        cryptoVersion: 1,
+      },
+      {
+        vaultId: newVault.id,
+        ownerId: user.id,
+        envelopeType: "recovery",
+        wrappedKey: payload.recoveryEnvelope.wrappedKey,
+        iv: payload.recoveryEnvelope.iv,
+        salt: payload.recoveryEnvelope.salt,
+        kdfName: payload.recoveryEnvelope.kdfName,
+        kdfParams: payload.recoveryEnvelope.kdfParams,
+        verificationCiphertext: payload.recoveryEnvelope.verificationCiphertext,
+        verificationIv: payload.recoveryEnvelope.verificationIv,
+        cryptoVersion: 1,
+      },
+    ]);
+
+    if (payload.defaultTypes.length > 0) {
+      await tx.insert(credentialTypes).values(
+        payload.defaultTypes.map((dt) => ({
+          vaultId: newVault.id,
+          ownerId: user.id,
+          payloadCiphertext: dt.payloadCiphertext,
+          iv: dt.iv,
+          sortOrder: dt.sortOrder,
+          cryptoVersion: 1,
+          schemaVersion: 1,
+        }))
+      );
+    }
+
+    return newVault.id;
+  });
+
+  return { success: true, vaultId: newVaultId };
 }

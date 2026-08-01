@@ -74,8 +74,9 @@ export default function SetupWizardPage() {
       return;
     }
 
-    const newRecoveryKey = generateRecoveryKey();
-    setRecoveryKey(newRecoveryKey);
+    if (!recoveryKey) {
+      setRecoveryKey(generateRecoveryKey());
+    }
     setStep(3);
   }
 

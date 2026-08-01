@@ -12,7 +12,7 @@ interface VaultSessionState {
   lockVault: () => void;
 }
 
-export const useVaultSessionStore = create<VaultSessionState>((set) => ({
+export const useVaultSessionStore = create<VaultSessionState>((set, get) => ({
   vaultKey: null,
   vaultId: null,
   isUnlocked: false,
@@ -30,6 +30,7 @@ export const useVaultSessionStore = create<VaultSessionState>((set) => ({
   updateActivity: () => set({ lastActivityTimestamp: Date.now() }),
 
   lockVault: () => {
+    if (!get().isUnlocked) return;
     broadcastMessage({ type: "VAULT_LOCKED" });
     set({
       vaultKey: null,

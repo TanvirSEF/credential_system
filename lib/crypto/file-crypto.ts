@@ -1,5 +1,5 @@
-import { generateIv, generateVaultKey, wrapVaultKey, unwrapVaultKey, encryptPayload, decryptPayload } from "./aes-gcm";
-import { bytesToBase64Url, stringToBytes } from "./utils";
+import { generateIv, generateVaultKey, wrapVaultKey, unwrapVaultKey, encryptPayload } from "./aes-gcm";
+import { base64UrlToBytes, bytesToBase64Url } from "./utils";
 import { DecryptedDocumentMetadata } from "../types/document";
 
 export async function encryptFile(
@@ -63,9 +63,7 @@ export async function decryptFile(
     vaultKey
   );
 
-  const fileIvBytes = new Uint8Array(
-    Buffer.from(metadata.fileIv, "base64url")
-  );
+  const fileIvBytes = base64UrlToBytes(metadata.fileIv);
 
   const decryptedBuffer = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: fileIvBytes as BufferSource },
