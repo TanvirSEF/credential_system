@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getSupabaseServerEnv } from "@/lib/supabase/env";
 
 const protectedPrefixes = ["/dashboard", "/setup", "/unlock"];
 
@@ -11,11 +12,15 @@ function isProtectedPath(pathname: string) {
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  let supabaseUrl: string;
+  let publishableKey: string;
 
-  if (!supabaseUrl || !publishableKey) {
-    console.error("Supabase Auth environment variables are missing.");
+  try {
+    const config = getSupabaseServerEnv();
+    supabaseUrl = config.url;
+    publishableKey = config.publishableKey;
+  } catch (error) {
+    console.error("Supabase Auth configuration failure:", error);
     if (isProtectedPath(request.nextUrl.pathname)) {
       return NextResponse.redirect(new URL("/login", request.url));
     }

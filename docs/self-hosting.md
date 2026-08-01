@@ -100,11 +100,17 @@ Dokploy can deploy `docker-compose.yml` directly. Configure values from `.env.ex
 expose the `app` service on port 3000, and attach a domain. Run the migration tool profile
 only when using `DATABASE_SETUP_MODE=migrate`.
 
+For a Dokploy source/Dockerfile deployment, set the Supabase values in the runtime
+environment. `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` are the recommended
+server-side names. The application also accepts the existing
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` names at runtime,
+so older deployments can upgrade without renaming them. Rebuild and redeploy after
+changing environment values.
+
 If Supabase Auth succeeds but the dashboard reports that the vault database is
-unavailable, verify that Dokploy has both runtime and build-time Supabase variables and
-that `DATABASE_URL` uses a connection reachable from the VPS. Check the app container
-logs for `Vault database status check failed`; never paste connection strings into logs
-or support messages.
+unavailable, verify that `DATABASE_URL` uses a connection reachable from the VPS. Check
+the app container logs for `Vault database status check failed`; never paste connection
+strings into logs or support messages.
 
 Dokploy does not run the interactive owner prompts. Create the owner in Supabase Auth,
 copy that user's UUID into `INSTANCE_OWNER_USER_ID`, and set `APP_VERSION` to the deployed
