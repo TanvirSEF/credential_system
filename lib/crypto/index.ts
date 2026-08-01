@@ -5,3 +5,4 @@ export * from "./aes-gcm";
 export * from "./key-envelope";
 export * from "./recovery-envelope";
 export * from "./file-crypto";
+export * from "./zeroization";
