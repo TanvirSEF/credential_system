@@ -5,6 +5,7 @@ import { VaultGuard } from "@/components/vault-guard";
 import { getUserProfileAction } from "@/lib/actions/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { InstanceUpdateNotice } from "@/components/instance-update-notice";
 import { useRouter } from "next/navigation";
 import {
   Key,
@@ -55,6 +56,8 @@ function DashboardContent() {
           Vault Unlocked
         </Badge>
       </div>
+
+      <InstanceUpdateNotice />
 
       {/* ── Stat cards row ── */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

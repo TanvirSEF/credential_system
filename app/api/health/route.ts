@@ -7,6 +7,7 @@ export function GET() {
     {
       status: "ok",
       service: "secure-personal-vault",
+      version: process.env.APP_VERSION || "local",
       databaseProvider: process.env.DATABASE_PROVIDER || "postgresql",
       databaseAuthorization:
         process.env.DATABASE_AUTHORIZATION_MODE || "supabase-rls",

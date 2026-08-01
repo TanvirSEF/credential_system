@@ -1,114 +1,87 @@
-# 🛡️ Secure Personal Vault (SPV)
+# Secure Personal Vault (SPV)
 
-> **Zero-Knowledge Encrypted Password, API Key & Document Manager**
+> Zero-knowledge encrypted password, API key, and document manager.
 
-Secure Personal Vault is a privacy-first web application built for managing passwords, credentials, API keys, dynamic custom categories, and sensitive documents. All data is encrypted strictly in your browser using Web Crypto API before reaching any database or server.
+Secure Personal Vault encrypts data in the browser with the Web Crypto API before it
+reaches the database, object storage, or application server.
 
----
+## Features
 
-## ✨ Features
+- Client-side AES-256-GCM encryption
+- PBKDF2 key derivation with 600,000 iterations
+- Credentials, API keys, custom categories, and encrypted documents
+- Recovery key support and browser IndexedDB cache
+- Supabase Auth with PostgreSQL application data
+- S3-compatible storage: Cloudflare R2, AWS S3, MinIO, Backblaze B2, Wasabi, and others
+- Docker, Docker Compose, Dokploy, and one-command VPS installation
 
-- **🔐 Zero-Knowledge Encryption**: Master password derives key via `PBKDF2` (600,000 iterations). All data encrypted with `AES-256-GCM` client-side.
-- **🔑 Credential Management**: Store passwords, usernames, tags, websites, and custom fields safely.
-- **📄 Encrypted Document Vault**: Upload PDFs, certificates, and files encrypted with SHA-256 integrity verification.
-- **🏷️ Dynamic Categories & Templates**: Custom category hierarchies with custom field types (`Secret`, `Text`, `Date`, `URL`).
-- **⚡ IndexedDB Cold-Start Cache**: Fast local caching in browser IndexedDB with `BroadcastChannel` multi-tab sync.
-- **🗑️ Trash & Recovery**: Soft-delete items retained for 30 days before permanent purging.
-- **🌐 Self-Hostable**: Deploy anywhere with Next.js, Supabase, and PostgreSQL.
-
----
-
-## 🛠️ Tech Stack
-
-- **Framework**: [Next.js 16](https://nextjs.org/) (App Router, Turbopack, React 19)
-- **Database & Auth**: [Supabase PostgreSQL](https://supabase.com/) & [Drizzle ORM](https://orm.drizzle.team/)
-- **Encryption**: Web Crypto API (`AES-256-GCM`, `PBKDF2`)
-- **Styling**: Tailwind CSS & [shadcn/ui](https://ui.shadcn.com/)
-- **Icons**: Lucide Icons
-
-## 🏠 Self-hosting and providers
-
-The application includes a production standalone Docker image, Docker Compose
-deployment, health endpoint, database migrations, and Linux install/update scripts.
+## Provider support
 
 - **Authentication:** Supabase Auth
 - **Application data:** Supabase Postgres or another PostgreSQL-compatible database
-- **File storage:** any S3-compatible service, including Cloudflare R2, AWS S3, MinIO,
-  Backblaze B2, and Wasabi
+- **File storage:** any S3-compatible service
 
-MongoDB is not currently supported because the data and authorization model relies on
+MongoDB is not currently supported. The schema and authorization model rely on
 PostgreSQL transactions, foreign keys, Drizzle's PostgreSQL dialect, and optional RLS.
 
-See [the self-hosting guide](./docs/self-hosting.md) for provider choices, Docker and
-Dokploy deployment, security requirements, and the one-command installer.
+See [the self-hosting guide](./docs/self-hosting.md) for provider details, Docker and
+Dokploy deployment, database modes, security requirements, and updates.
 
-### VPS quick start
+## VPS quick start
 
-Requirements: a Linux VPS with Git, Docker Engine, and Docker Compose v2. After pushing
-this repository to GitHub, run:
+Requirements: a Linux VPS with Git, curl, Docker Engine, and Docker Compose v2.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TanvirSEF/credential_system/main/scripts/install.sh | sudo sh
 ```
 
-The first run clones the application and creates
-`/opt/secure-personal-vault/.env`. During the same run it interactively asks for the
-Supabase, PostgreSQL, and S3-compatible storage configuration. Secret inputs are hidden.
-Answer `yes` when asked whether the database schema already exists if it was previously
-created with `pnpm db:push`; database migrations and RLS writes will then be skipped.
-For a new empty database, answer `no` to apply the committed migrations. After the
-questions, the same command builds and starts the application—no second installer run
-or manual `.env` editing is required.
+The first run installs the latest published GitHub Release, or the default branch when
+no release exists. It asks for the Supabase, PostgreSQL, storage, and owner-account
+configuration, then builds and starts the application in the same run.
 
-Verify it at `http://YOUR_VPS_IP:3000/api/health`, then attach a domain and HTTPS using
-Dokploy, Caddy, Nginx, or another reverse proxy. Do not expose PostgreSQL directly to
-the internet.
+The owner login password and Supabase service-role key are hidden and used only by a
+one-time account bootstrap process. They are not written to `.env` or logs. Only the
+created Supabase user UUID is saved as `INSTANCE_OWNER_USER_ID`.
 
----
+Choose `yes` when asked whether the database schema already exists if it was previously
+created using `pnpm db:push`. This skips migration and RLS writes. Choose `no` only for
+an empty database or one already managed by the committed migration journal.
 
-## 🚀 Getting Started
+After installation, the owner logs in and creates a separate Master Password and
+recovery key inside the browser. Every additional registered user creates an independent
+Master Password and encrypted vault.
 
-### Prerequisites
+Verify the deployment at `http://YOUR_VPS_IP:3000/api/health`, then attach a domain and
+HTTPS with Dokploy, Caddy, Nginx, or another reverse proxy. Never expose PostgreSQL or
+an object-storage admin console directly to the internet.
 
-- Node.js 18+
-- pnpm / npm / yarn
-- Supabase Project (PostgreSQL database)
+## Release updates
 
-### Installation
+A push to `main` does not notify installations. Publish a semantic GitHub Release such
+as `v0.2.0` when an update is ready. Only the configured instance owner sees the update
+notice, release notes, and copy-update-command button in the dashboard.
 
-1. **Clone repository**:
-   ```bash
-   git clone https://github.com/TanvirSEF/credential_system.git
-   cd credential_system
-   ```
+```bash
+sudo sh /opt/secure-personal-vault/scripts/update.sh
+```
 
-2. **Install dependencies**:
-   ```bash
-   pnpm install
-   ```
+The updater deploys the latest published release tag and preserves the instance `.env`.
 
-3. **Configure Environment Variables**:
-   Create a `.env` file in the root directory:
-   ```env
-   DATABASE_URL="postgresql://user:password@host:5432/postgres"
-   DIRECT_URL="postgresql://user:password@host:5432/postgres"
-   NEXT_PUBLIC_SUPABASE_URL="https://your-supabase-project.supabase.co"
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-supabase-anon-key"
-   ```
+## Local development
 
-4. **Run Database Migrations**:
-   ```bash
-   pnpm db:push
-   ```
+Requirements: Node.js 22+, pnpm, Supabase Auth, PostgreSQL, and S3-compatible storage.
 
-5. **Start Development Server**:
-   ```bash
-   pnpm dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
+```bash
+git clone https://github.com/TanvirSEF/credential_system.git
+cd credential_system
+pnpm install
+cp .env.example .env
+pnpm db:push
+pnpm dev
+```
 
----
+Open [http://localhost:3000](http://localhost:3000).
 
-## 📜 License
+## License
 
-Distributed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [`LICENSE`](./LICENSE) for details.
+Distributed under the GNU Affero General Public License v3.0. See [LICENSE](./LICENSE).
