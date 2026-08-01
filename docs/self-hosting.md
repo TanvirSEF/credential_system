@@ -28,6 +28,11 @@ must not be exposed publicly: only the application server should be able to conn
 Authentication still comes from Supabase, while server actions enforce ownership in
 their queries.
 
+`DATABASE_SETUP_MODE=existing` tells the installer that the schema and policies are
+already present (for example, because the shared database is managed locally with
+`pnpm db:push`). It performs no database writes. Use `DATABASE_SETUP_MODE=migrate` only
+for an empty database or a database already managed by the committed migration journal.
+
 ## Object storage configuration
 
 Use the generic `STORAGE_S3_*` variables from `.env.example`. For MinIO, set
@@ -55,9 +60,11 @@ Run the installer as root:
 curl -fsSL https://raw.githubusercontent.com/TanvirSEF/credential_system/main/scripts/install.sh | sudo sh
 ```
 
-On its first run, the installer creates `/opt/secure-personal-vault/.env` and stops so
-secrets can be entered safely. Run the same command again to validate the configuration,
-build the image, apply migrations, and start the service.
+On its first run, the installer asks for all required configuration through the VPS
+terminal. Secret values are hidden and saved to `/opt/secure-personal-vault/.env` with
+mode 600. It then validates the configuration, builds the image, optionally applies
+migrations according to the database answer, and starts the service in the same run.
+If `.env` already exists, later installer runs reuse it without asking the questions.
 
 For updates:
 

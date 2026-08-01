@@ -42,6 +42,28 @@ PostgreSQL transactions, foreign keys, Drizzle's PostgreSQL dialect, and optiona
 See [the self-hosting guide](./docs/self-hosting.md) for provider choices, Docker and
 Dokploy deployment, security requirements, and the one-command installer.
 
+### VPS quick start
+
+Requirements: a Linux VPS with Git, Docker Engine, and Docker Compose v2. After pushing
+this repository to GitHub, run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TanvirSEF/credential_system/main/scripts/install.sh | sudo sh
+```
+
+The first run clones the application and creates
+`/opt/secure-personal-vault/.env`. During the same run it interactively asks for the
+Supabase, PostgreSQL, and S3-compatible storage configuration. Secret inputs are hidden.
+Answer `yes` when asked whether the database schema already exists if it was previously
+created with `pnpm db:push`; database migrations and RLS writes will then be skipped.
+For a new empty database, answer `no` to apply the committed migrations. After the
+questions, the same command builds and starts the application—no second installer run
+or manual `.env` editing is required.
+
+Verify it at `http://YOUR_VPS_IP:3000/api/health`, then attach a domain and HTTPS using
+Dokploy, Caddy, Nginx, or another reverse proxy. Do not expose PostgreSQL directly to
+the internet.
+
 ---
 
 ## 🚀 Getting Started

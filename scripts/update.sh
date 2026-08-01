@@ -17,12 +17,25 @@ cd "$INSTALL_DIR"
 git pull --ff-only
 docker compose config --quiet
 docker compose build app
-docker compose --profile tools run --rm migrate
-AUTHORIZATION_MODE="$(sed -n 's/^DATABASE_AUTHORIZATION_MODE=//p' .env | tail -n 1)"
-AUTHORIZATION_MODE="${AUTHORIZATION_MODE:-supabase-rls}"
-if [ "$AUTHORIZATION_MODE" = "supabase-rls" ]; then
-  docker compose --profile tools run --rm rls
-fi
+DATABASE_SETUP_MODE="$(sed -n 's/^DATABASE_SETUP_MODE=//p' .env | tail -n 1)"
+DATABASE_SETUP_MODE="${DATABASE_SETUP_MODE:-existing}"
+case "$DATABASE_SETUP_MODE" in
+  existing)
+    echo "Using the existing database schema; migration steps are skipped."
+    ;;
+  migrate)
+    docker compose --profile tools run --rm migrate
+    AUTHORIZATION_MODE="$(sed -n 's/^DATABASE_AUTHORIZATION_MODE=//p' .env | tail -n 1)"
+    AUTHORIZATION_MODE="${AUTHORIZATION_MODE:-supabase-rls}"
+    if [ "$AUTHORIZATION_MODE" = "supabase-rls" ]; then
+      docker compose --profile tools run --rm rls
+    fi
+    ;;
+  *)
+    echo "DATABASE_SETUP_MODE must be 'existing' or 'migrate'." >&2
+    exit 1
+    ;;
+esac
 docker compose up -d app
 docker image prune -f --filter "label=com.docker.compose.project=secure-personal-vault"
 
