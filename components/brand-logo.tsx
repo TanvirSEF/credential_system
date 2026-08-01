@@ -43,7 +43,7 @@ export function BrandLogo({
         width={1536}
         height={1024}
         preload={preload}
-        className="absolute left-1/2 top-[70%] h-auto w-[300px] max-w-none -translate-x-1/2 -translate-y-1/2"
+        className="absolute left-1/2 top-[70%] h-auto w-[300px] max-w-none -translate-x-1/2 -translate-y-1/2 transition-[filter] dark:brightness-0 dark:invert"
       />
     </span>
   );
