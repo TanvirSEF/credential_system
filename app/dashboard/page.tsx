@@ -28,17 +28,22 @@ function DashboardContent() {
     router.push("/unlock");
   }
 
+  async function handleSignOut() {
+    lockVault();
+    await signOutAction();
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="border-b bg-card px-6 py-4 flex items-center justify-between shadow-sm">
+      {/* Navigation Bar */}
+      <header className="border-b px-6 py-4 flex items-center justify-between bg-card">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
-            <Shield className="h-5 w-5 text-primary" />
+            <Shield className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-lg font-bold">Secure Personal Vault</h1>
-            <p className="text-xs text-muted-foreground">Zero-Knowledge Encrypted Session Active</p>
+            <h1 className="font-extrabold tracking-tight">Secure Personal Vault</h1>
+            <p className="text-xs text-muted-foreground">Zero-Knowledge Encrypted Storage</p>
           </div>
         </div>
 
@@ -55,7 +60,7 @@ function DashboardContent() {
           <Button variant="outline" size="sm" onClick={handleLock}>
             <Lock className="h-4 w-4 mr-1.5" /> Lock Vault
           </Button>
-          <form action={signOutAction}>
+          <form action={handleSignOut}>
             <Button variant="ghost" size="sm" type="submit">
               <LogOut className="h-4 w-4 mr-1.5" /> Sign Out
             </Button>
