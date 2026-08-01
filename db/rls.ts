@@ -8,6 +8,19 @@ export function withRls<T>(
   userId: string,
   fn: (tx: DbTx) => Promise<T>
 ): Promise<T> {
+  const authorizationMode =
+    process.env.DATABASE_AUTHORIZATION_MODE || "supabase-rls";
+
+  if (authorizationMode === "application") {
+    return db.transaction(fn);
+  }
+
+  if (authorizationMode !== "supabase-rls") {
+    throw new Error(
+      "DATABASE_AUTHORIZATION_MODE must be 'supabase-rls' or 'application'."
+    );
+  }
+
   const claims = JSON.stringify({ sub: userId, role: "authenticated" });
   return db.transaction(async (tx) => {
     await tx.execute(sql`set local role authenticated`);

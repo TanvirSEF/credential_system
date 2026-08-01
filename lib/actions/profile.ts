@@ -4,10 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { profiles } from "@/db/schema";
 import { withRls } from "@/db/rls";
 import {
-  r2KeyForAvatar,
+  objectKeyForAvatar,
   presignPutUrl,
   publicUrlFor,
-} from "@/lib/r2/client";
+} from "@/lib/storage/object-storage";
 
 const ALLOWED_AVATAR_TYPES: Record<string, string> = {
   "image/png": "png",
@@ -58,7 +58,7 @@ export async function getAvatarUploadUrlAction(contentType: string) {
     };
   }
 
-  const key = r2KeyForAvatar(user.id, ext);
+  const key = objectKeyForAvatar(user.id, ext);
   const uploadUrl = await presignPutUrl(key, contentType, 120);
   return {
     error: null,
@@ -68,7 +68,7 @@ export async function getAvatarUploadUrlAction(contentType: string) {
   };
 }
 
-export async function setAvatarAction(storagePath: string, publicUrl: string) {
+export async function setAvatarAction(storagePath: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated." };
@@ -76,6 +76,8 @@ export async function setAvatarAction(storagePath: string, publicUrl: string) {
   if (!storagePath.startsWith(`avatars/${user.id}/`)) {
     return { error: "Invalid avatar path." };
   }
+
+  const publicUrl = publicUrlFor(storagePath);
 
   const authFullName = (user.user_metadata?.full_name as string) || "";
 
@@ -93,7 +95,7 @@ export async function setAvatarAction(storagePath: string, publicUrl: string) {
       })
   );
 
-  return { success: true };
+  return { success: true, publicUrl };
 }
 
 export async function updateProfileNameAction(fullName: string) {

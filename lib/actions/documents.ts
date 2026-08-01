@@ -5,11 +5,11 @@ import { documents } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { withRls } from "@/db/rls";
 import {
-  r2KeyForDocument,
+  objectKeyForDocument,
   presignPutUrl,
   presignGetUrl,
   deleteObject,
-} from "@/lib/r2/client";
+} from "@/lib/storage/object-storage";
 import { vaultOwnedBy } from "./_shared";
 
 export async function fetchDocumentsAction(vaultId: string) {
@@ -49,7 +49,7 @@ export async function createDocumentUploadUrlAction(vaultId: string) {
     return { error: "Vault not found." };
   }
 
-  const storagePath = r2KeyForDocument(user.id);
+  const storagePath = objectKeyForDocument(user.id);
   const uploadUrl = await presignPutUrl(
     storagePath,
     "application/octet-stream",
@@ -101,6 +101,10 @@ export async function createDocumentRecordAction(payload: {
   return withRls(user.id, async (tx) => {
     if (!(await vaultOwnedBy(tx, payload.vaultId, user.id))) {
       return { error: "Vault not found." };
+    }
+
+    if (!payload.storagePath.startsWith(`documents/${user.id}/`)) {
+      return { error: "Invalid document storage path." };
     }
 
     const inserted = await tx

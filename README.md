@@ -26,6 +26,22 @@ Secure Personal Vault is a privacy-first web application built for managing pass
 - **Styling**: Tailwind CSS & [shadcn/ui](https://ui.shadcn.com/)
 - **Icons**: Lucide Icons
 
+## 🏠 Self-hosting and providers
+
+The application includes a production standalone Docker image, Docker Compose
+deployment, health endpoint, database migrations, and Linux install/update scripts.
+
+- **Authentication:** Supabase Auth
+- **Application data:** Supabase Postgres or another PostgreSQL-compatible database
+- **File storage:** any S3-compatible service, including Cloudflare R2, AWS S3, MinIO,
+  Backblaze B2, and Wasabi
+
+MongoDB is not currently supported because the data and authorization model relies on
+PostgreSQL transactions, foreign keys, Drizzle's PostgreSQL dialect, and optional RLS.
+
+See [the self-hosting guide](./docs/self-hosting.md) for provider choices, Docker and
+Dokploy deployment, security requirements, and the one-command installer.
+
 ---
 
 ## 🚀 Getting Started

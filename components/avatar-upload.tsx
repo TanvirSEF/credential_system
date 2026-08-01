@@ -53,13 +53,13 @@ export function AvatarUpload({
         return;
       }
 
-      const save = await setAvatarAction(presign.storagePath, presign.publicUrl);
+      const save = await setAvatarAction(presign.storagePath);
       if (save.error) {
         setError(save.error);
         return;
       }
 
-      onUpdated(presign.publicUrl);
+      onUpdated(save.publicUrl || presign.publicUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload avatar.");
     } finally {

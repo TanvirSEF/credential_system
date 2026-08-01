@@ -10,7 +10,7 @@ export async function createMasterEnvelope(
 ): Promise<{ envelope: KeyEnvelope; vaultKey: CryptoKey }> {
   const vaultKey = await generateVaultKey();
   const salt = generateSalt(16);
-  const iterations = 100000;
+  const iterations = DEFAULT_PBKDF2_ITERATIONS;
   
   const masterKek = await deriveKeyFromPassword(password, salt, iterations);
   const { wrappedKey, iv } = await wrapVaultKey(vaultKey, masterKek);

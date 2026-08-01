@@ -7,6 +7,7 @@ ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- 1. Profiles Table Policies
+DROP POLICY IF EXISTS "Users can manage own profile" ON profiles;
 CREATE POLICY "Users can manage own profile"
   ON profiles
   FOR ALL
@@ -14,42 +15,50 @@ CREATE POLICY "Users can manage own profile"
   WITH CHECK (id = auth.uid());
 
 -- 2. Vaults Table Policies
+DROP POLICY IF EXISTS "Users can insert own vault" ON vaults;
 CREATE POLICY "Users can insert own vault"
   ON vaults FOR INSERT
   WITH CHECK (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can view own vault" ON vaults;
 CREATE POLICY "Users can view own vault"
   ON vaults FOR SELECT
   USING (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update own vault" ON vaults;
 CREATE POLICY "Users can update own vault"
   ON vaults FOR UPDATE
   USING (owner_id = auth.uid())
   WITH CHECK (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete own vault" ON vaults;
 CREATE POLICY "Users can delete own vault"
   ON vaults FOR DELETE
   USING (owner_id = auth.uid());
 
 -- 3. Vault Key Envelopes Table Policies
+DROP POLICY IF EXISTS "Users can manage own key envelopes" ON vault_key_envelopes;
 CREATE POLICY "Users can manage own key envelopes"
   ON vault_key_envelopes FOR ALL
   USING (owner_id = auth.uid())
   WITH CHECK (owner_id = auth.uid());
 
 -- 4. Credential Types Table Policies
+DROP POLICY IF EXISTS "Users can manage own credential types" ON credential_types;
 CREATE POLICY "Users can manage own credential types"
   ON credential_types FOR ALL
   USING (owner_id = auth.uid())
   WITH CHECK (owner_id = auth.uid());
 
 -- 5. Credentials Table Policies
+DROP POLICY IF EXISTS "Users can manage own credentials" ON credentials;
 CREATE POLICY "Users can manage own credentials"
   ON credentials FOR ALL
   USING (owner_id = auth.uid())
   WITH CHECK (owner_id = auth.uid());
 
 -- 6. Documents Table Policies
+DROP POLICY IF EXISTS "Users can manage own documents" ON documents;
 CREATE POLICY "Users can manage own documents"
   ON documents FOR ALL
   USING (owner_id = auth.uid())
