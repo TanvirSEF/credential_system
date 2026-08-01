@@ -16,7 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Lock } from "lucide-react";
+import { Lock, KeyRound } from "lucide-react";
 import { KeyEnvelope } from "@/lib/crypto/types";
 
 export default function UnlockVaultPage() {
@@ -64,9 +64,12 @@ export default function UnlockVaultPage() {
 
       let unlockedVaultKey: CryptoKey;
 
-      if (useRecovery) {
+      const inputVal = useRecovery ? recoveryKey.trim() : masterPassword.trim();
+      const isRecoveryInput = useRecovery || inputVal.toUpperCase().startsWith("SPV-");
+
+      if (isRecoveryInput) {
         if (!recoveryEnvelope) throw new Error("Recovery envelope missing.");
-        unlockedVaultKey = await unlockVaultWithRecoveryKey(recoveryKey, recoveryEnvelope);
+        unlockedVaultKey = await unlockVaultWithRecoveryKey(inputVal, recoveryEnvelope);
       } else {
         if (!masterEnvelope) throw new Error("Master envelope missing.");
         unlockedVaultKey = await unlockVaultWithMasterPassword(masterPassword, masterEnvelope);
@@ -75,99 +78,94 @@ export default function UnlockVaultPage() {
       setUnlockedSession(unlockedVaultKey, vaultId);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Failed to unlock vault.");
+      setError(
+        useRecovery || masterPassword.toUpperCase().startsWith("SPV-")
+          ? "Invalid Recovery Key format or incorrect recovery key."
+          : "Incorrect Master Password. If you forgot your password, click 'Unlock with Recovery Key'."
+      );
       setUnlocking(false);
     }
   }
 
   if (checking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground font-sans">
         Checking vault status...
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md shadow-xl">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4 font-sans">
+      <Card className="w-full max-w-md shadow-xl border-primary/20 bg-card/80 backdrop-blur-md">
         <CardHeader className="space-y-2 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Lock className="h-6 w-6" />
+            {useRecovery ? <KeyRound className="h-6 w-6" /> : <Lock className="h-6 w-6" />}
           </div>
-          <CardTitle className="text-2xl font-bold">Vault Locked</CardTitle>
+          <CardTitle className="text-2xl font-bold font-heading">
+            {useRecovery ? "Restore Access with Recovery Key" : "Vault Locked"}
+          </CardTitle>
           <CardDescription>
-            Enter your {useRecovery ? "Recovery Key" : "Master Password"} to unlock your encrypted data
+            {useRecovery
+              ? "Enter your 256-bit recovery key (SPV-XXXX-XXXX-...)"
+              : "Enter your Account Master Password to unlock your encrypted vault"}
           </CardDescription>
         </CardHeader>
 
         <form onSubmit={handleUnlock}>
           <CardContent className="space-y-4">
             {error && (
-              <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+              <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive font-sans">
                 {error}
               </div>
             )}
 
             {!useRecovery ? (
               <div className="space-y-2">
-                <Label htmlFor="masterPassword">Master Password</Label>
+                <Label htmlFor="master-password">Master Password</Label>
                 <Input
-                  id="masterPassword"
+                  id="master-password"
                   type="password"
                   required
-                  autoFocus
+                  placeholder="Enter your master password..."
                   value={masterPassword}
                   onChange={(e) => setMasterPassword(e.target.value)}
-                  placeholder="••••••••••••"
+                  className="font-mono text-sm"
                 />
               </div>
             ) : (
               <div className="space-y-2">
-                <Label htmlFor="recoveryKey">Recovery Key</Label>
+                <Label htmlFor="recovery-key">256-bit Recovery Key</Label>
                 <Input
-                  id="recoveryKey"
+                  id="recovery-key"
                   type="text"
                   required
-                  autoFocus
+                  placeholder="SPV-XXXX-XXXX-XXXX-XXXX-..."
                   value={recoveryKey}
                   onChange={(e) => setRecoveryKey(e.target.value)}
-                  placeholder="SPV-XXXXX-XXXXX-..."
-                  className="font-mono"
+                  className="font-mono text-sm tracking-wider"
                 />
               </div>
             )}
           </CardContent>
 
-          <CardFooter className="flex flex-col space-y-4 pt-2">
-            <Button type="submit" disabled={unlocking} className="w-full">
-              {unlocking ? "Unlocking Vault..." : "Unlock Vault"}
+          <CardFooter className="flex flex-col space-y-3 pt-2">
+            <Button type="submit" disabled={unlocking} className="w-full font-bold shadow-md">
+              {unlocking ? "Unwrapping Vault Key..." : useRecovery ? "Restore & Unlock Vault" : "Unlock Vault"}
             </Button>
-            <div className="text-center text-xs text-muted-foreground">
-              {!useRecovery ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUseRecovery(true);
-                    setError(null);
-                  }}
-                  className="text-primary hover:underline"
-                >
-                  Forgot Master Password? Unlock with Recovery Key
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUseRecovery(false);
-                    setError(null);
-                  }}
-                  className="text-primary hover:underline"
-                >
-                  Back to Master Password Unlock
-                </button>
-              )}
-            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setUseRecovery(!useRecovery);
+              }}
+              className="text-xs text-primary hover:underline font-medium focus:outline-none"
+            >
+              {useRecovery
+                ? "← Switch back to Master Password unlock"
+                : "Forgot Master Password? Unlock with Recovery Key"}
+            </button>
           </CardFooter>
         </form>
       </Card>

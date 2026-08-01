@@ -33,37 +33,33 @@ export async function getUserVaultStatus() {
   const masterEnvelopeRecord = envelopes.find((e) => e.envelopeType === "master");
   const recoveryEnvelopeRecord = envelopes.find((e) => e.envelopeType === "recovery");
 
-  const masterEnvelope: KeyEnvelope | null = masterEnvelopeRecord
-    ? {
-        wrappedKey: masterEnvelopeRecord.wrappedKey,
-        iv: masterEnvelopeRecord.iv,
-        salt: masterEnvelopeRecord.kdfSalt,
-        kdfName: "pbkdf2",
-        kdfParams: {
-          name: "pbkdf2",
-          salt: masterEnvelopeRecord.kdfSalt,
-          iterations: masterEnvelopeRecord.kdfIterations,
-          hash: "SHA-256",
-        },
-        cryptoVersion: masterEnvelopeRecord.cryptoVersion,
-      }
-    : null;
+  // If envelopes are missing due to a previous partial setup error, clean up the incomplete vault so the user can complete Setup Wizard freshly
+  if (!masterEnvelopeRecord || !recoveryEnvelopeRecord) {
+    await db.delete(vaults).where(eq(vaults.id, userVault.id));
+    return { authenticated: true, user, hasVault: false };
+  }
 
-  const recoveryEnvelope: KeyEnvelope | null = recoveryEnvelopeRecord
-    ? {
-        wrappedKey: recoveryEnvelopeRecord.wrappedKey,
-        iv: recoveryEnvelopeRecord.iv,
-        salt: recoveryEnvelopeRecord.kdfSalt,
-        kdfName: "pbkdf2",
-        kdfParams: {
-          name: "pbkdf2",
-          salt: recoveryEnvelopeRecord.kdfSalt,
-          iterations: recoveryEnvelopeRecord.kdfIterations,
-          hash: "SHA-256",
-        },
-        cryptoVersion: recoveryEnvelopeRecord.cryptoVersion,
-      }
-    : null;
+  const masterEnvelope: KeyEnvelope = {
+    wrappedKey: masterEnvelopeRecord.wrappedKey,
+    iv: masterEnvelopeRecord.iv,
+    salt: masterEnvelopeRecord.salt,
+    kdfName: masterEnvelopeRecord.kdfName as any,
+    kdfParams: masterEnvelopeRecord.kdfParams as any,
+    verificationCiphertext: masterEnvelopeRecord.verificationCiphertext || undefined,
+    verificationIv: masterEnvelopeRecord.verificationIv || undefined,
+    cryptoVersion: masterEnvelopeRecord.cryptoVersion,
+  };
+
+  const recoveryEnvelope: KeyEnvelope = {
+    wrappedKey: recoveryEnvelopeRecord.wrappedKey,
+    iv: recoveryEnvelopeRecord.iv,
+    salt: recoveryEnvelopeRecord.salt,
+    kdfName: recoveryEnvelopeRecord.kdfName as any,
+    kdfParams: recoveryEnvelopeRecord.kdfParams as any,
+    verificationCiphertext: recoveryEnvelopeRecord.verificationCiphertext || undefined,
+    verificationIv: recoveryEnvelopeRecord.verificationIv || undefined,
+    cryptoVersion: recoveryEnvelopeRecord.cryptoVersion,
+  };
 
   return {
     authenticated: true,
@@ -93,6 +89,9 @@ export async function createVaultAndEnvelopesAction(payload: {
     return { error: "User not authenticated." };
   }
 
+  // Ensure any orphaned incomplete vault for this user is deleted before creating new vault
+  await db.delete(vaults).where(eq(vaults.ownerId, user.id));
+
   const newVaultList = await db
     .insert(vaults)
     .values({
@@ -112,8 +111,11 @@ export async function createVaultAndEnvelopesAction(payload: {
       envelopeType: "master",
       wrappedKey: payload.masterEnvelope.wrappedKey,
       iv: payload.masterEnvelope.iv,
-      kdfSalt: payload.masterEnvelope.salt,
-      kdfIterations: payload.masterEnvelope.kdfParams.iterations,
+      salt: payload.masterEnvelope.salt,
+      kdfName: payload.masterEnvelope.kdfName,
+      kdfParams: payload.masterEnvelope.kdfParams,
+      verificationCiphertext: payload.masterEnvelope.verificationCiphertext,
+      verificationIv: payload.masterEnvelope.verificationIv,
       cryptoVersion: 1,
     },
     {
@@ -122,8 +124,11 @@ export async function createVaultAndEnvelopesAction(payload: {
       envelopeType: "recovery",
       wrappedKey: payload.recoveryEnvelope.wrappedKey,
       iv: payload.recoveryEnvelope.iv,
-      kdfSalt: payload.recoveryEnvelope.salt,
-      kdfIterations: payload.recoveryEnvelope.kdfParams.iterations,
+      salt: payload.recoveryEnvelope.salt,
+      kdfName: payload.recoveryEnvelope.kdfName,
+      kdfParams: payload.recoveryEnvelope.kdfParams,
+      verificationCiphertext: payload.recoveryEnvelope.verificationCiphertext,
+      verificationIv: payload.recoveryEnvelope.verificationIv,
       cryptoVersion: 1,
     },
   ]);

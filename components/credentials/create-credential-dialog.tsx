@@ -182,9 +182,7 @@ export function CreateCredentialDialog({
       setOpen(val);
       if (!val) resetForm();
     }}>
-      <DialogTrigger>
-        <Button>+ Add New Credential</Button>
-      </DialogTrigger>
+      <DialogTrigger render={<Button>+ Add New Credential</Button>} />
 
       <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>

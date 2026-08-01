@@ -114,9 +114,7 @@ export function CreateTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger>
-        <Button>+ New Category Type</Button>
-      </DialogTrigger>
+      <DialogTrigger render={<Button>+ New Category Type</Button>} />
       <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Custom Category</DialogTitle>

@@ -1,4 +1,12 @@
-import { pgTable, uuid, text, timestamp, integer } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  text,
+  integer,
+  timestamp,
+  bigint,
+  jsonb,
+} from "drizzle-orm/pg-core";
 
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(),
@@ -24,13 +32,17 @@ export const vaultKeyEnvelopes = pgTable("vault_key_envelopes", {
   id: uuid("id").defaultRandom().primaryKey(),
   vaultId: uuid("vault_id").notNull().references(() => vaults.id, { onDelete: "cascade" }),
   ownerId: uuid("owner_id").notNull(),
-  envelopeType: text("envelope_type").notNull(), // 'master_password' | 'recovery_key'
-  kdfSalt: text("kdf_salt").notNull(),
-  kdfIterations: integer("kdf_iterations").default(600000).notNull(),
+  envelopeType: text("envelope_type").notNull(),
   wrappedKey: text("wrapped_key").notNull(),
   iv: text("iv").notNull(),
+  salt: text("salt").notNull(),
+  kdfName: text("kdf_name").notNull(),
+  kdfParams: jsonb("kdf_params").notNull(),
+  verificationCiphertext: text("verification_ciphertext"),
+  verificationIv: text("verification_iv"),
   cryptoVersion: integer("crypto_version").default(1).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const credentialTypes = pgTable("credential_types", {
@@ -55,9 +67,9 @@ export const credentials = pgTable("credentials", {
   typeId: uuid("type_id").references(() => credentialTypes.id, { onDelete: "set null" }),
   payloadCiphertext: text("payload_ciphertext").notNull(),
   iv: text("iv").notNull(),
-  version: integer("version").default(1).notNull(),
   cryptoVersion: integer("crypto_version").default(1).notNull(),
   schemaVersion: integer("schema_version").default(1).notNull(),
+  version: integer("version").default(1).notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -72,10 +84,10 @@ export const documents = pgTable("documents", {
   metadataCiphertext: text("metadata_ciphertext").notNull(),
   metadataIv: text("metadata_iv").notNull(),
   ciphertextSha256: text("ciphertext_sha256"),
-  ciphertextSize: integer("ciphertext_size").notNull(),
+  ciphertextSize: bigint("ciphertext_size", { mode: "number" }).notNull(),
   cryptoVersion: integer("crypto_version").default(1).notNull(),
   version: integer("version").default(1).notNull(),
-  uploadStatus: text("upload_status").default("completed").notNull(),
+  uploadStatus: text("upload_status").default("pending").notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

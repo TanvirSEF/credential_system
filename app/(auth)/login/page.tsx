@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { loginAction } from "@/lib/actions/auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/card";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -30,6 +32,8 @@ export default function LoginPage() {
     if (res?.error) {
       setError(res.error);
       setLoading(false);
+    } else {
+      router.push("/dashboard");
     }
   }
 
