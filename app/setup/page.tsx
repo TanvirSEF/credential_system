@@ -1,18 +1,22 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   createMasterEnvelope,
   createRecoveryEnvelope,
   encryptPayload,
   generateRecoveryKey,
-} from "@/lib/crypto";
-import { createVaultAndEnvelopesAction, getUserVaultStatus } from "@/lib/actions/vault";
-import { useVaultSessionStore } from "@/stores/vault-session-store";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/lib/crypto"
+import {
+  createVaultAndEnvelopesAction,
+  getUserVaultStatus,
+} from "@/lib/actions/vault"
+import { DEFAULT_CREDENTIAL_CATEGORIES } from "@/lib/credential-templates"
+import { useVaultSessionStore } from "@/stores/vault-session-store"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Card,
   CardContent,
@@ -20,74 +24,74 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Check } from "lucide-react";
+} from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Check } from "lucide-react"
 
 export default function SetupWizardPage() {
-  const router = useRouter();
-  const setUnlockedSession = useVaultSessionStore((s) => s.setUnlockedSession);
+  const router = useRouter()
+  const setUnlockedSession = useVaultSessionStore((s) => s.setUnlockedSession)
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [checking, setChecking] = useState(true);
-  const [statusError, setStatusError] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [checking, setChecking] = useState(true)
+  const [statusError, setStatusError] = useState<string | null>(null)
 
   // Master password state
-  const [masterPassword, setMasterPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [masterPassword, setMasterPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [passwordError, setPasswordError] = useState<string | null>(null)
 
   // Recovery key state
-  const [recoveryKey, setRecoveryKey] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [challengeInput, setChallengeInput] = useState("");
-  const [challengeError, setChallengeError] = useState<string | null>(null);
+  const [recoveryKey, setRecoveryKey] = useState("")
+  const [copied, setCopied] = useState(false)
+  const [challengeInput, setChallengeInput] = useState("")
+  const [challengeError, setChallengeError] = useState<string | null>(null)
 
   // Creation state
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   useEffect(() => {
     async function checkStatus() {
-      const status = await getUserVaultStatus();
+      const status = await getUserVaultStatus()
       if (status.error) {
-        setStatusError(status.error);
-        setChecking(false);
+        setStatusError(status.error)
+        setChecking(false)
       } else if (!status.authenticated) {
-        router.push("/login");
+        router.push("/login")
       } else if (status.hasVault) {
-        router.push("/unlock");
+        router.push("/unlock")
       } else {
-        setChecking(false);
+        setChecking(false)
       }
     }
-    checkStatus();
-  }, [router]);
+    checkStatus()
+  }, [router])
 
   function handlePasswordSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setPasswordError(null);
+    e.preventDefault()
+    setPasswordError(null)
 
     if (masterPassword.length < 12) {
-      setPasswordError("Master password must be at least 12 characters long.");
-      return;
+      setPasswordError("Master password must be at least 12 characters long.")
+      return
     }
 
     if (masterPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match.");
-      return;
+      setPasswordError("Passwords do not match.")
+      return
     }
 
     if (!recoveryKey) {
-      setRecoveryKey(generateRecoveryKey());
+      setRecoveryKey(generateRecoveryKey())
     }
-    setStep(3);
+    setStep(3)
   }
 
   function handleCopyRecoveryKey() {
-    navigator.clipboard.writeText(recoveryKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+    navigator.clipboard.writeText(recoveryKey)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 3000)
   }
 
   function handleDownloadRecoveryKey() {
@@ -96,51 +100,52 @@ export default function SetupWizardPage() {
         `SECURE PERSONAL VAULT — RECOVERY KEY\n\nRecovery Key: ${recoveryKey}\n\nWARNING: Keep this recovery key safe. If you forget your master password, this key is required to recover your vault.`,
       ],
       { type: "text/plain" }
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "spv-recovery-key.txt";
-    a.click();
-    URL.revokeObjectURL(url);
+    )
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "spv-recovery-key.txt"
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   async function handleFinalSetup(e: React.FormEvent) {
-    e.preventDefault();
-    setChallengeError(null);
+    e.preventDefault()
+    setChallengeError(null)
 
-    const prefix = recoveryKey.slice(0, 9);
+    const prefix = recoveryKey.slice(0, 9)
     if (challengeInput.trim().toUpperCase() !== prefix) {
-      setChallengeError(`Verification mismatch. Please type the first 2 groups (e.g. ${prefix}).`);
-      return;
+      setChallengeError(
+        `Verification mismatch. Please type the first 2 groups (e.g. ${prefix}).`
+      )
+      return
     }
 
-    setCreating(true);
-    setCreateError(null);
+    setCreating(true)
+    setCreateError(null)
 
     try {
-      const { envelope: masterEnvelope, vaultKey } = await createMasterEnvelope(masterPassword);
-      const recoveryEnvelope = await createRecoveryEnvelope(recoveryKey, vaultKey);
-      const nameEncrypted = await encryptPayload({ name: "Personal Vault" }, vaultKey);
-
-      const defaultCategories = [
-        { name: "Login", icon: "key", description: "Websites and applications" },
-        { name: "Secure Note", icon: "file-text", description: "Private notes and text snippets" },
-        { name: "API Key", icon: "code", description: "Developer and service API keys" },
-        { name: "Wi-Fi", icon: "wifi", description: "Wireless network passwords" },
-        { name: "Banking", icon: "credit-card", description: "Bank accounts and card references" },
-      ];
+      const { envelope: masterEnvelope, vaultKey } =
+        await createMasterEnvelope(masterPassword)
+      const recoveryEnvelope = await createRecoveryEnvelope(
+        recoveryKey,
+        vaultKey
+      )
+      const nameEncrypted = await encryptPayload(
+        { name: "Personal Vault" },
+        vaultKey
+      )
 
       const encryptedTypes = await Promise.all(
-        defaultCategories.map(async (cat, idx) => {
-          const enc = await encryptPayload(cat, vaultKey);
+        DEFAULT_CREDENTIAL_CATEGORIES.map(async (cat, idx) => {
+          const enc = await encryptPayload(cat, vaultKey)
           return {
             payloadCiphertext: enc.ciphertext,
             iv: enc.iv,
             sortOrder: idx,
-          };
+          }
         })
-      );
+      )
 
       const res = await createVaultAndEnvelopesAction({
         nameCiphertext: nameEncrypted.ciphertext,
@@ -148,17 +153,19 @@ export default function SetupWizardPage() {
         masterEnvelope,
         recoveryEnvelope,
         defaultTypes: encryptedTypes,
-      });
+      })
 
       if (res.error || !res.vaultId) {
-        throw new Error(res.error || "Failed to create vault.");
+        throw new Error(res.error || "Failed to create vault.")
       }
 
-      setUnlockedSession(vaultKey, res.vaultId);
-      router.push("/dashboard");
+      setUnlockedSession(vaultKey, res.vaultId)
+      router.push("/dashboard")
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Vault initialization failed.");
-      setCreating(false);
+      setCreateError(
+        err instanceof Error ? err.message : "Vault initialization failed."
+      )
+      setCreating(false)
     }
   }
 
@@ -167,7 +174,7 @@ export default function SetupWizardPage() {
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
         Loading vault setup...
       </div>
-    );
+    )
   }
 
   if (statusError) {
@@ -185,7 +192,7 @@ export default function SetupWizardPage() {
           </CardFooter>
         </Card>
       </div>
-    );
+    )
   }
 
   return (
@@ -193,7 +200,9 @@ export default function SetupWizardPage() {
       <Card className="w-full max-w-xl shadow-xl">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b pb-4">
           <div>
-            <CardTitle className="text-xl font-bold">Vault Setup Wizard</CardTitle>
+            <CardTitle className="text-xl font-bold">
+              Vault Setup Wizard
+            </CardTitle>
             <CardDescription className="mt-1">
               Initialize your zero-knowledge personal vault
             </CardDescription>
@@ -205,22 +214,28 @@ export default function SetupWizardPage() {
 
         {/* STEP 1: Overview */}
         {step === 1 && (
-          <div className="p-6 space-y-6">
+          <div className="space-y-6 p-6">
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold">Zero-Knowledge Architecture</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Your personal vault is protected with zero-knowledge encryption. Your Master Password is used strictly on your device to decrypt your data and is <strong>never transmitted to our servers</strong>.
+              <h3 className="text-lg font-semibold">
+                Zero-Knowledge Architecture
+              </h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Your personal vault is protected with zero-knowledge encryption.
+                Your Master Password is used strictly on your device to decrypt
+                your data and is{" "}
+                <strong>never transmitted to our servers</strong>.
               </p>
             </div>
 
-            <div className="rounded-lg border bg-muted/40 p-4 space-y-2 text-xs leading-relaxed text-muted-foreground">
+            <div className="space-y-2 rounded-lg border bg-muted/40 p-4 text-xs leading-relaxed text-muted-foreground">
               <p className="flex items-center">
-                <Check className="h-4 w-4 text-green-500 mr-2 shrink-0" />
+                <Check className="mr-2 h-4 w-4 shrink-0 text-green-500" />
                 All passwords, secrets, and files are encrypted before upload.
               </p>
               <p className="flex items-center">
-                <Check className="h-4 w-4 text-green-500 mr-2 shrink-0" />
-                If you forget your master password, only your <strong>Recovery Key</strong> can unlock your vault.
+                <Check className="mr-2 h-4 w-4 shrink-0 text-green-500" />
+                If you forget your master password, only your{" "}
+                <strong>Recovery Key</strong> can unlock your vault.
               </p>
             </div>
 
@@ -233,9 +248,11 @@ export default function SetupWizardPage() {
         {/* STEP 2: Master Password */}
         {step === 2 && (
           <form onSubmit={handlePasswordSubmit}>
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="space-y-4 p-6">
               <div className="space-y-1">
-                <h3 className="text-lg font-semibold">Create Master Password</h3>
+                <h3 className="text-lg font-semibold">
+                  Create Master Password
+                </h3>
                 <p className="text-sm text-muted-foreground">
                   This password unlocks your encrypted vault on this device.
                 </p>
@@ -248,7 +265,9 @@ export default function SetupWizardPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="masterPassword">Master Password (min 12 characters)</Label>
+                <Label htmlFor="masterPassword">
+                  Master Password (min 12 characters)
+                </Label>
                 <Input
                   id="masterPassword"
                   type="password"
@@ -273,8 +292,13 @@ export default function SetupWizardPage() {
               </div>
             </CardContent>
 
-            <CardFooter className="flex gap-3 px-6 pb-6 pt-0">
-              <Button type="button" variant="outline" onClick={() => setStep(1)} className="w-1/3">
+            <CardFooter className="flex gap-3 px-6 pt-0 pb-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep(1)}
+                className="w-1/3"
+              >
                 Back
               </Button>
               <Button type="submit" className="w-2/3">
@@ -287,30 +311,45 @@ export default function SetupWizardPage() {
         {/* STEP 3: Recovery Key & Finalize */}
         {step === 3 && (
           <form onSubmit={handleFinalSetup}>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="space-y-6 p-6">
               <div className="space-y-1">
-                <h3 className="text-lg font-semibold">Save Your Recovery Key</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Store this key in a safe place. If you forget your master password, you will need this key to restore access to your data.
+                <h3 className="text-lg font-semibold">
+                  Save Your Recovery Key
+                </h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Store this key in a safe place. If you forget your master
+                  password, you will need this key to restore access to your
+                  data.
                 </p>
               </div>
 
-              <div className="rounded-lg border bg-muted/60 p-4 text-center font-mono text-base font-bold tracking-widest text-primary break-all">
+              <div className="rounded-lg border bg-muted/60 p-4 text-center font-mono text-base font-bold tracking-widest break-all text-primary">
                 {recoveryKey}
               </div>
 
               <div className="flex gap-2">
-                <Button type="button" variant="secondary" onClick={handleCopyRecoveryKey} className="w-1/2 text-xs">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleCopyRecoveryKey}
+                  className="w-1/2 text-xs"
+                >
                   {copied ? "Copied to Clipboard!" : "Copy Recovery Key"}
                 </Button>
-                <Button type="button" variant="secondary" onClick={handleDownloadRecoveryKey} className="w-1/2 text-xs">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleDownloadRecoveryKey}
+                  className="w-1/2 text-xs"
+                >
                   Download .txt Backup
                 </Button>
               </div>
 
               <div className="space-y-2 border-t pt-4">
                 <Label htmlFor="challenge">
-                  Backup Verification: Type the first 2 groups of your key ({recoveryKey.slice(0, 9)})
+                  Backup Verification: Type the first 2 groups of your key (
+                  {recoveryKey.slice(0, 9)})
                 </Label>
                 <Input
                   id="challenge"
@@ -333,8 +372,14 @@ export default function SetupWizardPage() {
               )}
             </CardContent>
 
-            <CardFooter className="flex gap-3 px-6 pb-6 pt-0">
-              <Button type="button" variant="outline" onClick={() => setStep(2)} disabled={creating} className="w-1/3">
+            <CardFooter className="flex gap-3 px-6 pt-0 pb-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep(2)}
+                disabled={creating}
+                className="w-1/3"
+              >
                 Back
               </Button>
               <Button type="submit" disabled={creating} className="w-2/3">
@@ -345,5 +390,5 @@ export default function SetupWizardPage() {
         )}
       </Card>
     </div>
-  );
+  )
 }
