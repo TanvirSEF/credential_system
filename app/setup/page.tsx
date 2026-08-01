@@ -152,8 +152,8 @@ export default function SetupWizardPage() {
 
       setUnlockedSession(vaultKey, res.vaultId);
       router.push("/dashboard");
-    } catch (err: any) {
-      setCreateError(err.message || "Vault initialization failed.");
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Vault initialization failed.");
       setCreating(false);
     }
   }

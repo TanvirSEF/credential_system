@@ -90,8 +90,8 @@ function DocumentsContent() {
       a.click();
 
       setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
-    } catch (err: any) {
-      alert("Download error: " + (err.message || "Failed to decrypt document."));
+    } catch (err) {
+      alert("Download error: " + (err instanceof Error ? err.message : "Failed to decrypt document."));
     } finally {
       setDownloadingId(null);
     }

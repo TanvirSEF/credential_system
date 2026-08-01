@@ -77,7 +77,7 @@ export default function UnlockVaultPage() {
 
       setUnlockedSession(unlockedVaultKey, vaultId);
       router.push("/dashboard");
-    } catch (err: any) {
+    } catch {
       setError(
         useRecovery || masterPassword.toUpperCase().startsWith("SPV-")
           ? "Invalid Recovery Key format or incorrect recovery key."

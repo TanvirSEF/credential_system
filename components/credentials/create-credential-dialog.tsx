@@ -159,8 +159,8 @@ export function CreateCredentialDialog({
       resetForm();
       setOpen(false);
       onSaved();
-    } catch (err: any) {
-      setError(err.message || "Failed to save credential.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save credential.");
     } finally {
       setLoading(false);
     }

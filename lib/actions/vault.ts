@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { vaults, vaultKeyEnvelopes, credentialTypes } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { withRls } from "@/db/rls";
-import { KeyEnvelope } from "@/lib/crypto/types";
+import { KeyEnvelope, KdfParams } from "@/lib/crypto/types";
 
 export async function getUserVaultStatus() {
   const supabase = await createClient();
@@ -48,8 +48,8 @@ export async function getUserVaultStatus() {
     wrappedKey: masterEnvelopeRecord.wrappedKey,
     iv: masterEnvelopeRecord.iv,
     salt: masterEnvelopeRecord.salt,
-    kdfName: masterEnvelopeRecord.kdfName as any,
-    kdfParams: masterEnvelopeRecord.kdfParams as any,
+    kdfName: masterEnvelopeRecord.kdfName,
+    kdfParams: masterEnvelopeRecord.kdfParams as KdfParams,
     verificationCiphertext: masterEnvelopeRecord.verificationCiphertext || undefined,
     verificationIv: masterEnvelopeRecord.verificationIv || undefined,
     cryptoVersion: masterEnvelopeRecord.cryptoVersion,
@@ -60,8 +60,8 @@ export async function getUserVaultStatus() {
         wrappedKey: recoveryEnvelopeRecord.wrappedKey,
         iv: recoveryEnvelopeRecord.iv,
         salt: recoveryEnvelopeRecord.salt,
-        kdfName: recoveryEnvelopeRecord.kdfName as any,
-        kdfParams: recoveryEnvelopeRecord.kdfParams as any,
+        kdfName: recoveryEnvelopeRecord.kdfName,
+        kdfParams: recoveryEnvelopeRecord.kdfParams as KdfParams,
         verificationCiphertext: recoveryEnvelopeRecord.verificationCiphertext || undefined,
         verificationIv: recoveryEnvelopeRecord.verificationIv || undefined,
         cryptoVersion: recoveryEnvelopeRecord.cryptoVersion,

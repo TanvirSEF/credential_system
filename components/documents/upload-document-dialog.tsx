@@ -84,8 +84,8 @@ export function UploadDocumentDialog({ onUploaded }: UploadDocumentDialogProps) 
       setDescription("");
       setOpen(false);
       onUploaded();
-    } catch (err: any) {
-      setError(err.message || "Failed to upload document.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload document.");
     } finally {
       setUploading(false);
     }

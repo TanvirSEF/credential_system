@@ -105,8 +105,8 @@ export function CreateTypeDialog({
       setFields([]);
       setOpen(false);
       onTypeCreated();
-    } catch (err: any) {
-      setError(err.message || "Failed to create category.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create category.");
     } finally {
       setLoading(false);
     }
