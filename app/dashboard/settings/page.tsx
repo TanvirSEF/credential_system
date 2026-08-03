@@ -20,6 +20,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { ArrowLeft } from "lucide-react"
+import { AutoLockSettingsCard } from "@/components/settings/auto-lock-settings-card"
+import { BackupSettingsCard } from "@/components/settings/backup-settings-card"
 
 interface ProfileState {
   email: string
@@ -131,6 +133,10 @@ function SettingsContent() {
           )}
         </CardContent>
       </Card>
+
+      <AutoLockSettingsCard />
+
+      <BackupSettingsCard />
 
       <PwaSettingsCard />
     </div>

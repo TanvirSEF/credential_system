@@ -33,7 +33,11 @@ export default function OfflinePage() {
             </div>
           </div>
 
-          <Button render={<Link href="/login" />} className="mt-6 w-full">
+          <Button
+            nativeButton={false}
+            render={<Link href="/login" />}
+            className="mt-6 w-full"
+          >
             <RefreshCw /> Try again
           </Button>
           <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">

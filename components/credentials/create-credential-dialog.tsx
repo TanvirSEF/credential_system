@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordGeneratorDialog } from "@/components/credentials/password-generator-dialog"
 import {
   Select,
   SelectContent,
@@ -563,8 +564,17 @@ function CredentialFieldEditor({
                   value={field.value}
                   onChange={(event) => onChange({ value: event.target.value })}
                   placeholder={`Enter ${field.label || "value"}`}
-                  className="h-9 pr-10"
+                  className={`h-9 ${field.type === "password" ? "pr-18" : "pr-10"}`}
                 />
+              )}
+              {field.type === "password" && (
+                <div className="absolute top-1/2 right-8 -translate-y-1/2">
+                  <PasswordGeneratorDialog
+                    onUse={(password) =>
+                      onChange({ value: password, secret: true })
+                    }
+                  />
+                </div>
               )}
               {field.secret &&
                 field.type !== "multiline" &&

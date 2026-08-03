@@ -1,20 +1,30 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getUserVaultStatus } from "@/lib/actions/vault"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
 import { subscribeBroadcast } from "@/lib/storage/broadcast-channel"
+import { loadAutoLockPreferences } from "@/lib/security/auto-lock"
 
 export function VaultGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const isUnlocked = useVaultSessionStore((s) => s.isUnlocked)
   const autoLockMinutes = useVaultSessionStore((s) => s.autoLockMinutes)
+  const lockWhenHidden = useVaultSessionStore((s) => s.lockWhenHidden)
   const lockVault = useVaultSessionStore((s) => s.lockVault)
-  const lastActivityRef = useRef(0)
+  const updateActivity = useVaultSessionStore((s) => s.updateActivity)
+  const setAutoLockPreferences = useVaultSessionStore(
+    (s) => s.setAutoLockPreferences
+  )
 
   const [loading, setLoading] = useState(true)
   const [statusError, setStatusError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const preferences = loadAutoLockPreferences()
+    setAutoLockPreferences(preferences.minutes, preferences.lockWhenHidden)
+  }, [setAutoLockPreferences])
 
   useEffect(() => {
     async function verifyGuard() {
@@ -48,29 +58,50 @@ export function VaultGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isUnlocked) return
 
-    lastActivityRef.current = Date.now()
+    updateActivity()
 
     const interval = setInterval(() => {
       const elapsedMinutes =
-        (Date.now() - lastActivityRef.current) / (1000 * 60)
+        (Date.now() - useVaultSessionStore.getState().lastActivityTimestamp) /
+        (1000 * 60)
       if (elapsedMinutes >= autoLockMinutes) {
         lockVault()
         router.push("/unlock")
       }
-    }, 10000)
+    }, 5000)
 
     const handleUserActivity = () => {
-      lastActivityRef.current = Date.now()
+      updateActivity()
     }
-    window.addEventListener("mousemove", handleUserActivity)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && lockWhenHidden) {
+        lockVault()
+      } else if (document.visibilityState === "visible") {
+        updateActivity()
+      }
+    }
+    window.addEventListener("pointerdown", handleUserActivity)
     window.addEventListener("keydown", handleUserActivity)
+    window.addEventListener("touchstart", handleUserActivity, { passive: true })
+    window.addEventListener("scroll", handleUserActivity, { passive: true })
+    document.addEventListener("visibilitychange", handleVisibilityChange)
 
     return () => {
       clearInterval(interval)
-      window.removeEventListener("mousemove", handleUserActivity)
+      window.removeEventListener("pointerdown", handleUserActivity)
       window.removeEventListener("keydown", handleUserActivity)
+      window.removeEventListener("touchstart", handleUserActivity)
+      window.removeEventListener("scroll", handleUserActivity)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
-  }, [isUnlocked, autoLockMinutes, lockVault, router])
+  }, [
+    isUnlocked,
+    autoLockMinutes,
+    lockWhenHidden,
+    lockVault,
+    router,
+    updateActivity,
+  ])
 
   if (statusError) {
     return (

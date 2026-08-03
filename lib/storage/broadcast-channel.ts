@@ -17,24 +17,34 @@ export function broadcastMessage(msg: BroadcastMessageType): void {
   try {
     const ch = getChannel()
     ch?.postMessage(msg)
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent<BroadcastMessageType>("spv:broadcast", { detail: msg })
+      )
+    }
   } catch (err) {
     console.warn("BroadcastChannel error:", err)
   }
 }
 
 export function subscribeBroadcast(
-  callback: (msg: BroadcastMessageType) => void
+  callback: (msg: BroadcastMessageType) => void,
+  includeLocal = false
 ): () => void {
   const ch = getChannel()
-  if (!ch) return () => {}
 
   const handler = (event: MessageEvent<BroadcastMessageType>) => {
     callback(event.data)
   }
+  const localHandler = (event: Event) => {
+    callback((event as CustomEvent<BroadcastMessageType>).detail)
+  }
 
-  ch.addEventListener("message", handler)
+  ch?.addEventListener("message", handler)
+  if (includeLocal) window.addEventListener("spv:broadcast", localHandler)
 
   return () => {
-    ch.removeEventListener("message", handler)
+    ch?.removeEventListener("message", handler)
+    if (includeLocal) window.removeEventListener("spv:broadcast", localHandler)
   }
 }

@@ -16,6 +16,8 @@ import {
   StickyNote,
   Trash2,
   X,
+  ShieldCheck,
+  Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BrandLogo } from "@/components/brand-logo"
@@ -30,6 +32,7 @@ const navigation = [
   { href: "/dashboard/documents", label: "Documents", icon: FileText },
   { href: "/dashboard/types", label: "Categories", icon: Folder },
   { href: "/dashboard/trash", label: "Trash Bin", icon: Trash2 },
+  { href: "/dashboard/security", label: "Security Health", icon: ShieldCheck },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 
@@ -81,15 +84,26 @@ export function DashboardMobileNavigation() {
             </div>
           </Link>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-xl border border-amber-500/15 bg-amber-500/5"
-            onClick={handleLock}
-            aria-label="Lock vault"
-          >
-            <Lock className="h-4 w-4 text-amber-400" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-xl"
+              onClick={() => window.dispatchEvent(new Event("spv:open-search"))}
+              aria-label="Search vault"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-xl border border-amber-500/15 bg-amber-500/5"
+              onClick={handleLock}
+              aria-label="Lock vault"
+            >
+              <Lock className="h-4 w-4 text-amber-400" />
+            </Button>
+          </div>
         </div>
       </header>
 

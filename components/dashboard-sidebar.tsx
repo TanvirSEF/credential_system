@@ -20,6 +20,8 @@ import {
   ChevronRight,
   Settings as SettingsIcon,
   StickyNote,
+  ShieldCheck,
+  Search,
 } from "lucide-react"
 
 const navItems = [
@@ -30,6 +32,7 @@ const navItems = [
   { href: "/dashboard/documents", label: "Documents", icon: FileText },
   { href: "/dashboard/types", label: "Categories", icon: Folder },
   { href: "/dashboard/trash", label: "Trash Bin", icon: Trash2 },
+  { href: "/dashboard/security", label: "Security Health", icon: ShieldCheck },
   { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
 ]
 
@@ -69,6 +72,17 @@ export function DashboardSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("spv:open-search"))}
+          className="mb-4 flex w-full items-center gap-3 rounded-lg border bg-background/60 px-3 py-2.5 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        >
+          <Search className="size-4" />
+          <span className="flex-1 text-left">Search vault</span>
+          <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px]">
+            Ctrl K
+          </kbd>
+        </button>
         <p className="mb-2 px-3 text-[10px] font-semibold tracking-widest text-muted-foreground/60 uppercase">
           Menu
         </p>

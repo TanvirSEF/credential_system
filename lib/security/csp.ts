@@ -42,7 +42,7 @@ export function createContentSecurityPolicy(
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' blob: data: ${imageSources.join(" ")}`,
     "font-src 'self' data:",
-    `connect-src 'self' https://*.supabase.co wss://*.supabase.co ${connectSources.join(" ")}`,
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.pwnedpasswords.com ${connectSources.join(" ")}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
