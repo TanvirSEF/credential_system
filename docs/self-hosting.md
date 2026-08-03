@@ -103,7 +103,7 @@ Password, recovery key, and encrypted vault.
 
 ## Release updates and visibility
 
-Publish a semantic GitHub Release such as `v1.2.0` when an update is ready. A push to
+Publish a semantic GitHub Release such as `v1.2.1` when an update is ready. A push to
 `main` does not notify installations. The app checks the latest published release at
 most once per hour and only after authenticating the user whose UUID matches
 `INSTANCE_OWNER_USER_ID`.

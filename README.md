@@ -78,7 +78,7 @@ object-storage administration endpoint to the public internet.
 ## Updating a self-hosted instance
 
 A push to `main` does not update installations. Publish a semantic GitHub Release,
-for example `v1.2.0`. Only the configured instance owner sees release notices and
+for example `v1.2.1`. Only the configured instance owner sees release notices and
 the update command in the dashboard.
 
 ```bash

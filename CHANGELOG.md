@@ -3,6 +3,24 @@
 All notable changes to Secure Personal Vault are documented here. The project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-08-04
+
+### Changed
+
+- Upgraded Next.js to 16.2.12 and refreshed the production dependency lockfile.
+- Rewrote the database setup and migration guide for the current PostgreSQL, RLS,
+  and S3-compatible storage architecture.
+- Expanded the README with the current security model, recovery limitations,
+  feature set, and release-validation workflow.
+- Added security reporting, contribution, and changelog documentation for the
+  open-source project.
+
+### Security
+
+- Pinned patched `sharp` and `postcss` releases to remove known production
+  dependency advisories.
+- Verified that the production dependency audit reports no known vulnerabilities.
+
 ## [1.2.0] - 2026-08-04
 
 ### Added
@@ -15,19 +33,10 @@ All notable changes to Secure Personal Vault are documented here. The project us
 - Encrypted vault backup and restore.
 - Secure notes, projects, Trash recovery, and password generation.
 
-### Changed
-
-- Expanded self-hosting and database migration documentation.
-- Added security reporting and contribution policies.
-- Updated Next.js to 16.2.12 and pinned audited transitive security fixes for
-  `sharp` and `postcss`.
-
 ### Security
 
 - Recovery and Master Password envelope updates use authenticated, conflict-aware
   server transactions.
-- Production dependency audit contains no known moderate or high vulnerabilities
-  at release validation time.
 
 ## [1.1.0]
 
