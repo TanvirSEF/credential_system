@@ -3,6 +3,7 @@ ALTER TABLE vaults ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vault_key_envelopes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credential_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credentials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
@@ -57,7 +58,14 @@ CREATE POLICY "Users can manage own credentials"
   USING (owner_id = auth.uid())
   WITH CHECK (owner_id = auth.uid());
 
--- 6. Documents Table Policies
+-- 6. Projects Table Policies
+DROP POLICY IF EXISTS "Users can manage own projects" ON projects;
+CREATE POLICY "Users can manage own projects"
+  ON projects FOR ALL
+  USING (owner_id = auth.uid())
+  WITH CHECK (owner_id = auth.uid());
+
+-- 7. Documents Table Policies
 DROP POLICY IF EXISTS "Users can manage own documents" ON documents;
 CREATE POLICY "Users can manage own documents"
   ON documents FOR ALL

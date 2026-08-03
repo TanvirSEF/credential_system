@@ -71,6 +71,7 @@ export const credentialTypes = pgTable("credential_types", {
   sortOrder: integer("sort_order").default(0).notNull(),
   cryptoVersion: integer("crypto_version").default(1).notNull(),
   schemaVersion: integer("schema_version").default(1).notNull(),
+  version: integer("version").default(1).notNull(),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
@@ -89,6 +90,26 @@ export const credentials = pgTable("credentials", {
   typeId: uuid("type_id").references(() => credentialTypes.id, {
     onDelete: "set null",
   }),
+  payloadCiphertext: text("payload_ciphertext").notNull(),
+  iv: text("iv").notNull(),
+  cryptoVersion: integer("crypto_version").default(1).notNull(),
+  schemaVersion: integer("schema_version").default(1).notNull(),
+  version: integer("version").default(1).notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+})
+
+export const projects = pgTable("projects", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  vaultId: uuid("vault_id")
+    .notNull()
+    .references(() => vaults.id, { onDelete: "cascade" }),
+  ownerId: uuid("owner_id").notNull(),
   payloadCiphertext: text("payload_ciphertext").notNull(),
   iv: text("iv").notNull(),
   cryptoVersion: integer("crypto_version").default(1).notNull(),

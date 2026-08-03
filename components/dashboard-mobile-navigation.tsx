@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import {
   FileText,
   Folder,
+  FolderGit2,
   Key,
   LayoutDashboard,
   Lock,
@@ -23,13 +24,14 @@ import { useVaultSessionStore } from "@/stores/vault-session-store"
 const navigation = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/credentials", label: "Credentials", icon: Key },
+  { href: "/dashboard/projects", label: "Projects", icon: FolderGit2 },
   { href: "/dashboard/documents", label: "Documents", icon: FileText },
   { href: "/dashboard/types", label: "Categories", icon: Folder },
   { href: "/dashboard/trash", label: "Trash Bin", icon: Trash2 },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 
-const primaryNavigation = navigation.slice(0, 4)
+const primaryNavigation = navigation.slice(0, 5)
 
 function routeIsActive(pathname: string, href: string) {
   return (
@@ -93,7 +95,7 @@ export function DashboardMobileNavigation() {
         aria-label="Mobile dashboard navigation"
         className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/90 px-2 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+0.4rem)] backdrop-blur-2xl md:hidden"
       >
-        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+        <div className="mx-auto grid max-w-lg grid-cols-6 gap-1">
           {primaryNavigation.map((item) => {
             const isActive = routeIsActive(pathname, item.href)
             return (

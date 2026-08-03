@@ -1,6 +1,7 @@
 "use client"
 
 import { createElement } from "react"
+import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   gradientForSeed,
@@ -13,14 +14,18 @@ export function CredentialAvatar({
   seed,
   label,
   categoryIcon,
+  icon,
   className,
 }: {
   seed: string
   label: string
   categoryIcon?: string | null
+  icon?: LucideIcon
   className?: string
 }) {
   const iconKey = knownCategoryIcon(categoryIcon)
+  const resolvedIcon =
+    icon ?? (iconKey ? resolveCategoryIcon(iconKey) : undefined)
 
   return (
     <div
@@ -31,8 +36,8 @@ export function CredentialAvatar({
         className
       )}
     >
-      {iconKey ? (
-        createElement(resolveCategoryIcon(iconKey), { className: "size-5" })
+      {resolvedIcon ? (
+        createElement(resolvedIcon, { className: "size-5" })
       ) : (
         <span className="select-none">{initialLetter(label)}</span>
       )}
