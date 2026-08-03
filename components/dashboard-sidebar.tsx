@@ -19,12 +19,14 @@ import {
   LayoutDashboard,
   ChevronRight,
   Settings as SettingsIcon,
+  StickyNote,
 } from "lucide-react"
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/credentials", label: "Credentials", icon: Key },
   { href: "/dashboard/projects", label: "Projects", icon: FolderGit2 },
+  { href: "/dashboard/notes", label: "Notes", icon: StickyNote },
   { href: "/dashboard/documents", label: "Documents", icon: FileText },
   { href: "/dashboard/types", label: "Categories", icon: Folder },
   { href: "/dashboard/trash", label: "Trash Bin", icon: Trash2 },

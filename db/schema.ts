@@ -124,6 +124,26 @@ export const projects = pgTable("projects", {
     .notNull(),
 })
 
+export const notes = pgTable("notes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  vaultId: uuid("vault_id")
+    .notNull()
+    .references(() => vaults.id, { onDelete: "cascade" }),
+  ownerId: uuid("owner_id").notNull(),
+  payloadCiphertext: text("payload_ciphertext").notNull(),
+  iv: text("iv").notNull(),
+  cryptoVersion: integer("crypto_version").default(1).notNull(),
+  schemaVersion: integer("schema_version").default(1).notNull(),
+  version: integer("version").default(1).notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+})
+
 export const documents = pgTable("documents", {
   id: uuid("id").defaultRandom().primaryKey(),
   vaultId: uuid("vault_id")

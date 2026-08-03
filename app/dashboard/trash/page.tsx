@@ -14,6 +14,11 @@ import {
   permanentDeleteProjectAction,
   restoreProjectAction,
 } from "@/lib/actions/projects"
+import {
+  fetchTrashNotesAction,
+  permanentDeleteNoteAction,
+  restoreNoteAction,
+} from "@/lib/actions/notes"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -26,21 +31,84 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { RefreshCw, Trash2 } from "lucide-react"
-import {
-  DecryptedCredential,
-  DecryptedCredentialPayload,
-} from "@/lib/types/credential"
-import { DecryptedProject, DecryptedProjectPayload } from "@/lib/types/project"
+import { DecryptedCredentialPayload } from "@/lib/types/credential"
+import { DecryptedProjectPayload } from "@/lib/types/project"
+import { DecryptedNotePayload } from "@/lib/types/note"
 import { countVariables } from "@/lib/env-parse"
+import { noteSnippet } from "@/components/notes/markdown-preview"
 
-type TrashType = "credentials" | "projects"
+type TrashType = "credentials" | "projects" | "notes"
+
+interface TrashItem {
+  id: string
+  title: string
+  subtitle?: string
+  deletedAt: Date | null
+}
+
+const TRASH_TABS: Array<{ id: TrashType; label: string }> = [
+  { id: "credentials", label: "Credentials" },
+  { id: "projects", label: "Projects" },
+  { id: "notes", label: "Notes" },
+]
+
+function TrashCard({
+  item,
+  onRestore,
+  onPurge,
+}: {
+  item: TrashItem
+  onRestore: (id: string) => void
+  onPurge: (id: string) => void
+}) {
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+        <div className="min-w-0">
+          <CardTitle className="text-base font-bold">{item.title}</CardTitle>
+          {item.subtitle && (
+            <CardDescription className="truncate text-xs">
+              {item.subtitle}
+            </CardDescription>
+          )}
+        </div>
+        <Badge variant="destructive" className="text-[10px]">
+          Deleted
+        </Badge>
+      </CardHeader>
+      <CardContent className="mt-3 flex items-center justify-between border-t pt-4">
+        <div className="text-xs text-muted-foreground">
+          Deleted on:{" "}
+          {item.deletedAt
+            ? new Date(item.deletedAt).toLocaleDateString()
+            : "Recent"}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onRestore(item.id)}
+          >
+            <RefreshCw className="mr-1.5 size-4" /> Restore
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => onPurge(item.id)}
+          >
+            <Trash2 className="mr-1.5 size-4" /> Purge
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 function TrashDashboardContent() {
   const { vaultKey, vaultId } = useVaultSessionStore()
 
   const [trashType, setTrashType] = useState<TrashType>("credentials")
-  const [credList, setCredList] = useState<DecryptedCredential[]>([])
-  const [projList, setProjList] = useState<DecryptedProject[]>([])
+  const [items, setItems] = useState<TrashItem[]>([])
   const [loading, setLoading] = useState(true)
   const [purgeId, setPurgeId] = useState<string | null>(null)
 
@@ -48,63 +116,74 @@ function TrashDashboardContent() {
     if (!vaultId || !vaultKey) return
     setLoading(true)
 
+    let nextItems: TrashItem[] = []
+
     if (trashType === "credentials") {
       const res = await fetchTrashCredentialsAction(vaultId)
-      if (res.credentials && res.credentials.length > 0) {
-        const decrypted = await Promise.all(
-          res.credentials.map(async (c) => ({
+      nextItems = await Promise.all(
+        (res.credentials ?? []).map(async (c) => {
+          const payload = await decryptPayload<DecryptedCredentialPayload>(
+            {
+              ciphertext: c.payloadCiphertext,
+              iv: c.iv,
+              cryptoVersion: c.cryptoVersion,
+              schemaVersion: c.schemaVersion,
+            },
+            vaultKey
+          )
+          return {
             id: c.id,
-            vaultId: c.vaultId,
-            ownerId: c.ownerId,
-            typeId: c.typeId,
+            title: payload.title,
+            subtitle: payload.subtitle,
             deletedAt: c.deletedAt,
-            version: c.version,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt,
-            payload: await decryptPayload<DecryptedCredentialPayload>(
-              {
-                ciphertext: c.payloadCiphertext,
-                iv: c.iv,
-                cryptoVersion: c.cryptoVersion,
-                schemaVersion: c.schemaVersion,
-              },
-              vaultKey
-            ),
-          }))
-        )
-        setCredList(decrypted)
-      } else {
-        setCredList([])
-      }
-    } else {
+          }
+        })
+      )
+    } else if (trashType === "projects") {
       const res = await fetchTrashProjectsAction(vaultId)
-      if (res.projects && res.projects.length > 0) {
-        const decrypted = await Promise.all(
-          res.projects.map(async (p) => ({
+      nextItems = await Promise.all(
+        (res.projects ?? []).map(async (p) => {
+          const payload = await decryptPayload<DecryptedProjectPayload>(
+            {
+              ciphertext: p.payloadCiphertext,
+              iv: p.iv,
+              cryptoVersion: p.cryptoVersion,
+              schemaVersion: p.schemaVersion,
+            },
+            vaultKey
+          )
+          return {
             id: p.id,
-            vaultId: p.vaultId,
-            ownerId: p.ownerId,
+            title: payload.name,
+            subtitle: `${payload.environments?.length ?? 0} envs · ${countVariables(payload.environments ?? [])} vars`,
             deletedAt: p.deletedAt,
-            version: p.version,
-            createdAt: p.createdAt,
-            updatedAt: p.updatedAt,
-            payload: await decryptPayload<DecryptedProjectPayload>(
-              {
-                ciphertext: p.payloadCiphertext,
-                iv: p.iv,
-                cryptoVersion: p.cryptoVersion,
-                schemaVersion: p.schemaVersion,
-              },
-              vaultKey
-            ),
-          }))
-        )
-        setProjList(decrypted)
-      } else {
-        setProjList([])
-      }
+          }
+        })
+      )
+    } else {
+      const res = await fetchTrashNotesAction(vaultId)
+      nextItems = await Promise.all(
+        (res.notes ?? []).map(async (n) => {
+          const payload = await decryptPayload<DecryptedNotePayload>(
+            {
+              ciphertext: n.payloadCiphertext,
+              iv: n.iv,
+              cryptoVersion: n.cryptoVersion,
+              schemaVersion: n.schemaVersion,
+            },
+            vaultKey
+          )
+          return {
+            id: n.id,
+            title: payload.title,
+            subtitle: noteSnippet(payload.content) || undefined,
+            deletedAt: n.deletedAt,
+          }
+        })
+      )
     }
 
+    setItems(nextItems)
     setLoading(false)
   }, [vaultId, vaultKey, trashType])
 
@@ -115,8 +194,10 @@ function TrashDashboardContent() {
   async function handleRestore(id: string) {
     if (trashType === "credentials") {
       await restoreCredentialAction(id)
-    } else {
+    } else if (trashType === "projects") {
       await restoreProjectAction(id)
+    } else {
+      await restoreNoteAction(id)
     }
     loadTrash()
   }
@@ -129,15 +210,14 @@ function TrashDashboardContent() {
     if (!purgeId) return
     if (trashType === "credentials") {
       await permanentDeleteCredentialAction(purgeId)
-    } else {
+    } else if (trashType === "projects") {
       await permanentDeleteProjectAction(purgeId)
+    } else {
+      await permanentDeleteNoteAction(purgeId)
     }
     setPurgeId(null)
     loadTrash()
   }
-
-  const activeCount =
-    trashType === "credentials" ? credList.length : projList.length
 
   return (
     <div className="max-w-300 space-y-6 p-6 lg:p-8">
@@ -147,35 +227,26 @@ function TrashDashboardContent() {
             Trash & Recovery
           </h1>
           <p className="text-sm text-muted-foreground">
-            Soft-deleted items · {activeCount} {trashType}
+            Soft-deleted items · {items.length} {trashType}
           </p>
         </div>
 
         <div className="flex items-center rounded-lg border bg-card p-0.5">
-          <button
-            type="button"
-            onClick={() => setTrashType("credentials")}
-            className={cn(
-              "h-8 cursor-pointer rounded-md px-3 text-xs font-semibold transition-colors",
-              trashType === "credentials"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Credentials
-          </button>
-          <button
-            type="button"
-            onClick={() => setTrashType("projects")}
-            className={cn(
-              "h-8 cursor-pointer rounded-md px-3 text-xs font-semibold transition-colors",
-              trashType === "projects"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Projects
-          </button>
+          {TRASH_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTrashType(t.id)}
+              className={cn(
+                "h-8 cursor-pointer rounded-md px-3 text-xs font-semibold transition-colors",
+                trashType === t.id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -183,7 +254,7 @@ function TrashDashboardContent() {
         <div className="py-12 text-center text-sm text-muted-foreground">
           Decrypting trash entries...
         </div>
-      ) : activeCount === 0 ? (
+      ) : items.length === 0 ? (
         <Card className="py-12 text-center">
           <CardHeader>
             <CardTitle>Trash is Empty</CardTitle>
@@ -194,97 +265,14 @@ function TrashDashboardContent() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {trashType === "credentials"
-            ? credList.map((item) => (
-                <Card key={item.id} className="shadow-sm">
-                  <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                    <div>
-                      <CardTitle className="text-base font-bold">
-                        {item.payload.title}
-                      </CardTitle>
-                      {item.payload.subtitle && (
-                        <CardDescription className="font-mono text-xs">
-                          {item.payload.subtitle}
-                        </CardDescription>
-                      )}
-                    </div>
-                    <Badge variant="destructive" className="text-[10px]">
-                      Deleted
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="mt-3 flex items-center justify-between border-t pt-4">
-                    <div className="text-xs text-muted-foreground">
-                      Deleted on:{" "}
-                      {item.deletedAt
-                        ? new Date(item.deletedAt).toLocaleDateString()
-                        : "Recent"}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRestore(item.id)}
-                      >
-                        <RefreshCw className="mr-1.5 size-4" /> Restore
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handlePermanentDelete(item.id)}
-                      >
-                        <Trash2 className="mr-1.5 size-4" /> Purge
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            : projList.map((item) => (
-                <Card key={item.id} className="shadow-sm">
-                  <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                    <div>
-                      <CardTitle className="text-base font-bold">
-                        {item.payload.name}
-                      </CardTitle>
-                      {item.payload.description && (
-                        <CardDescription className="text-xs">
-                          {item.payload.description}
-                        </CardDescription>
-                      )}
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {item.payload.environments?.length ?? 0} environments ·{" "}
-                        {countVariables(item.payload.environments ?? [])} vars
-                      </p>
-                    </div>
-                    <Badge variant="destructive" className="text-[10px]">
-                      Deleted
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="mt-3 flex items-center justify-between border-t pt-4">
-                    <div className="text-xs text-muted-foreground">
-                      Deleted on:{" "}
-                      {item.deletedAt
-                        ? new Date(item.deletedAt).toLocaleDateString()
-                        : "Recent"}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRestore(item.id)}
-                      >
-                        <RefreshCw className="mr-1.5 size-4" /> Restore
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handlePermanentDelete(item.id)}
-                      >
-                        <Trash2 className="mr-1.5 size-4" /> Purge
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+          {items.map((item) => (
+            <TrashCard
+              key={item.id}
+              item={item}
+              onRestore={handleRestore}
+              onPurge={handlePermanentDelete}
+            />
+          ))}
         </div>
       )}
 

@@ -13,6 +13,7 @@ import {
   LogOut,
   MoreHorizontal,
   Settings,
+  StickyNote,
   Trash2,
   X,
 } from "lucide-react"
@@ -25,6 +26,7 @@ const navigation = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/credentials", label: "Credentials", icon: Key },
   { href: "/dashboard/projects", label: "Projects", icon: FolderGit2 },
+  { href: "/dashboard/notes", label: "Notes", icon: StickyNote },
   { href: "/dashboard/documents", label: "Documents", icon: FileText },
   { href: "/dashboard/types", label: "Categories", icon: Folder },
   { href: "/dashboard/trash", label: "Trash Bin", icon: Trash2 },
