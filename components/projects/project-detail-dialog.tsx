@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
 import { encryptPayload } from "@/lib/crypto"
 import {
@@ -75,6 +76,8 @@ export function ProjectDetailDialog({
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const clipboardTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -113,9 +116,14 @@ export function ProjectDetailDialog({
 
   function handleClose(nextOpen: boolean) {
     if (!nextOpen && dirty) {
-      if (!confirm("Discard unsaved changes?")) return
+      setDiscardOpen(true)
+      return
     }
     onOpenChange(nextOpen)
+  }
+
+  function confirmDiscard() {
+    onOpenChange(false)
   }
 
   function copyValue(id: string, value: string) {
@@ -318,9 +326,8 @@ export function ProjectDetailDialog({
     }
   }
 
-  async function handleDelete() {
+  async function confirmDelete() {
     if (!project) return
-    if (!confirm("Move this project to Trash?")) return
     await softDeleteProjectAction(project.id)
     onOpenChange(false)
     onDeleted()
@@ -336,387 +343,408 @@ export function ProjectDetailDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="grid max-h-[92dvh] grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-3xl">
-        <DialogHeader className="border-b bg-linear-to-r from-primary/8 via-primary/3 to-transparent px-5 py-4 pr-14 sm:px-6">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <DialogTitle className="flex items-center gap-2 truncate text-lg font-bold">
-                {draft.name}
-                <button
-                  type="button"
-                  aria-label={
-                    draft.favorite ? "Remove favorite" : "Add favorite"
-                  }
-                  onClick={() =>
-                    commit((d) => ({ ...d, favorite: !d.favorite }))
-                  }
-                  className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-muted"
-                >
-                  <Star
-                    className={cn(
-                      "size-4",
-                      draft.favorite && "fill-amber-400 text-amber-400"
-                    )}
-                  />
-                </button>
-              </DialogTitle>
-              {draft.description && (
-                <DialogDescription className="truncate">
-                  {draft.description}
-                </DialogDescription>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  onOpenChange(false)
-                  onEdit(project)
-                }}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDelete}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="flex flex-wrap items-center gap-2 border-b bg-muted/30 px-5 py-2.5 sm:px-6">
-          <div className="flex flex-1 flex-wrap items-center gap-1.5">
-            {environments.map((env) => (
-              <button
-                key={env.id}
-                type="button"
-                onClick={() => {
-                  setActiveEnvId(env.id)
-                  setRenamingEnv(false)
-                  setAddingEnv(false)
-                }}
-                className={cn(
-                  "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors",
-                  env.id === activeEnv?.id
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                {env.name}
-                <span className="text-[10px] opacity-70">
-                  {env.variables.length}
-                </span>
-              </button>
-            ))}
-            {addingEnv ? (
-              <span className="inline-flex items-center gap-1">
-                <Input
-                  autoFocus
-                  value={newEnvName}
-                  onChange={(e) => setNewEnvName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") commitAddEnv()
-                    if (e.key === "Escape") setAddingEnv(false)
-                  }}
-                  placeholder="env name"
-                  className="h-8 w-28 text-xs"
-                />
-                <Button size="xs" onClick={commitAddEnv}>
-                  Add
-                </Button>
-              </span>
-            ) : (
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => setAddingEnv(true)}
-              >
-                <Plus /> Env
-              </Button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="xs" onClick={handleCopyEnv}>
-              <Copy /> .env
-            </Button>
-            <Button variant="outline" size="xs" onClick={handleDownloadEnv}>
-              <Download />
-            </Button>
-          </div>
-        </div>
-
-        <div className="min-h-0 overflow-y-auto px-5 py-4 sm:px-6">
-          {error && (
-            <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-              <AlertCircle className="mt-0.5 size-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          {activeEnv && (
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              {renamingEnv ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <Input
-                    autoFocus
-                    value={envNameDraft}
-                    onChange={(e) => setEnvNameDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitRenameEnv()
-                      if (e.key === "Escape") setRenamingEnv(false)
-                    }}
-                    className="h-8 w-40 text-sm"
-                  />
-                  <Button size="xs" onClick={commitRenameEnv}>
-                    Save
-                  </Button>
-                </span>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold">{activeEnv.name}</h3>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="grid max-h-[92dvh] grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-3xl">
+          <DialogHeader className="border-b bg-linear-to-r from-primary/8 via-primary/3 to-transparent px-5 py-4 pr-14 sm:px-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <DialogTitle className="flex items-center gap-2 truncate text-lg font-bold">
+                  {draft.name}
                   <button
                     type="button"
-                    onClick={() => {
-                      setEnvNameDraft(activeEnv.name)
-                      setRenamingEnv(true)
-                    }}
-                    className="cursor-pointer text-xs text-muted-foreground underline-offset-2 hover:underline"
+                    aria-label={
+                      draft.favorite ? "Remove favorite" : "Add favorite"
+                    }
+                    onClick={() =>
+                      commit((d) => ({ ...d, favorite: !d.favorite }))
+                    }
+                    className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-muted"
                   >
-                    Rename
+                    <Star
+                      className={cn(
+                        "size-4",
+                        draft.favorite && "fill-amber-400 text-amber-400"
+                      )}
+                    />
                   </button>
-                  {environments.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => deleteEnv(activeEnv.id)}
-                      className="cursor-pointer text-xs text-destructive underline-offset-2 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              )}
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => setImportOpen((v) => !v)}
-              >
-                <Upload /> Import .env
-              </Button>
-            </div>
-          )}
-
-          {importOpen && (
-            <div className="mb-4 space-y-2 rounded-xl border bg-muted/20 p-3">
-              <Label className="text-xs">
-                Import an <code>.env</code> file
-              </Label>
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed bg-background/60 px-4 py-4 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground">
-                <Upload className="size-4" />
-                Choose <code>.env</code> file
-                <input
-                  type="file"
-                  accept=".env,.txt,text/plain"
-                  onChange={handleFileImport}
-                  className="hidden"
-                />
-              </label>
-              <textarea
-                id="env-import"
-                rows={5}
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                placeholder={
-                  "DATABASE_URL=postgres://...\nSTRIPE_KEY=sk_live_...\n# DEBUG=true"
-                }
-                className="min-h-24 w-full resize-y rounded-lg border border-input bg-transparent p-3 font-mono text-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-              />
-              <p className="text-[10px] text-muted-foreground">
-                New keys are appended; existing keys update their value.
-              </p>
-              <div className="flex justify-end gap-2">
+                </DialogTitle>
+                {draft.description && (
+                  <DialogDescription className="truncate">
+                    {draft.description}
+                  </DialogDescription>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
                 <Button
-                  variant="ghost"
-                  size="xs"
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
-                    setImportOpen(false)
-                    setImportText("")
+                    onOpenChange(false)
+                    onEdit(project)
                   }}
                 >
-                  Cancel
+                  Edit
                 </Button>
                 <Button
-                  size="xs"
-                  onClick={handleImport}
-                  disabled={!importText.trim()}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeleteOpen(true)}
+                  className="text-destructive hover:text-destructive"
                 >
-                  Parse &amp; import
+                  <Trash2 className="size-4" />
                 </Button>
               </div>
             </div>
-          )}
+          </DialogHeader>
 
-          {activeEnv && activeEnv.variables.length === 0 ? (
-            <div className="rounded-xl border border-dashed bg-background/60 px-4 py-8 text-center">
-              <p className="text-xs font-medium">No variables yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Add one manually or import an existing .env.
-              </p>
+          <div className="flex flex-wrap items-center gap-2 border-b bg-muted/30 px-5 py-2.5 sm:px-6">
+            <div className="flex flex-1 flex-wrap items-center gap-1.5">
+              {environments.map((env) => (
+                <button
+                  key={env.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveEnvId(env.id)
+                    setRenamingEnv(false)
+                    setAddingEnv(false)
+                  }}
+                  className={cn(
+                    "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors",
+                    env.id === activeEnv?.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {env.name}
+                  <span className="text-[10px] opacity-70">
+                    {env.variables.length}
+                  </span>
+                </button>
+              ))}
+              {addingEnv ? (
+                <span className="inline-flex items-center gap-1">
+                  <Input
+                    autoFocus
+                    value={newEnvName}
+                    onChange={(e) => setNewEnvName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitAddEnv()
+                      if (e.key === "Escape") setAddingEnv(false)
+                    }}
+                    placeholder="env name"
+                    className="h-8 w-28 text-xs"
+                  />
+                  <Button size="xs" onClick={commitAddEnv}>
+                    Add
+                  </Button>
+                </span>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setAddingEnv(true)}
+                >
+                  <Plus /> Env
+                </Button>
+              )}
             </div>
-          ) : (
-            <div className="space-y-2">
-              {activeEnv?.variables.map((v) => {
-                const revealed = revealedFields.has(v.id)
-                const displayValue =
-                  v.secret && !revealed ? "••••••••" : v.value
-                return (
-                  <div
-                    key={v.id}
-                    className={cn(
-                      "flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2.5",
-                      !v.enabled && "opacity-55"
-                    )}
-                  >
+
+            <div className="flex items-center gap-1.5">
+              <Button variant="outline" size="xs" onClick={handleCopyEnv}>
+                <Copy /> .env
+              </Button>
+              <Button variant="outline" size="xs" onClick={handleDownloadEnv}>
+                <Download />
+              </Button>
+            </div>
+          </div>
+
+          <div className="min-h-0 overflow-y-auto px-5 py-4 sm:px-6">
+            {error && (
+              <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            {activeEnv && (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                {renamingEnv ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Input
+                      autoFocus
+                      value={envNameDraft}
+                      onChange={(e) => setEnvNameDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitRenameEnv()
+                        if (e.key === "Escape") setRenamingEnv(false)
+                      }}
+                      className="h-8 w-40 text-sm"
+                    />
+                    <Button size="xs" onClick={commitRenameEnv}>
+                      Save
+                    </Button>
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold">{activeEnv.name}</h3>
                     <button
                       type="button"
-                      aria-label={v.enabled ? "Disable" : "Enable"}
-                      onClick={() =>
-                        updateVariable(v.id, { enabled: !v.enabled })
-                      }
+                      onClick={() => {
+                        setEnvNameDraft(activeEnv.name)
+                        setRenamingEnv(true)
+                      }}
+                      className="cursor-pointer text-xs text-muted-foreground underline-offset-2 hover:underline"
+                    >
+                      Rename
+                    </button>
+                    {environments.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => deleteEnv(activeEnv.id)}
+                        className="cursor-pointer text-xs text-destructive underline-offset-2 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setImportOpen((v) => !v)}
+                >
+                  <Upload /> Import .env
+                </Button>
+              </div>
+            )}
+
+            {importOpen && (
+              <div className="mb-4 space-y-2 rounded-xl border bg-muted/20 p-3">
+                <Label className="text-xs">
+                  Import an <code>.env</code> file
+                </Label>
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed bg-background/60 px-4 py-4 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground">
+                  <Upload className="size-4" />
+                  Choose <code>.env</code> file
+                  <input
+                    type="file"
+                    accept=".env,.txt,text/plain"
+                    onChange={handleFileImport}
+                    className="hidden"
+                  />
+                </label>
+                <textarea
+                  id="env-import"
+                  rows={5}
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder={
+                    "DATABASE_URL=postgres://...\nSTRIPE_KEY=sk_live_...\n# DEBUG=true"
+                  }
+                  className="min-h-24 w-full resize-y rounded-lg border border-input bg-transparent p-3 font-mono text-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  New keys are appended; existing keys update their value.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => {
+                      setImportOpen(false)
+                      setImportText("")
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="xs"
+                    onClick={handleImport}
+                    disabled={!importText.trim()}
+                  >
+                    Parse &amp; import
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {activeEnv && activeEnv.variables.length === 0 ? (
+              <div className="rounded-xl border border-dashed bg-background/60 px-4 py-8 text-center">
+                <p className="text-xs font-medium">No variables yet</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Add one manually or import an existing .env.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {activeEnv?.variables.map((v) => {
+                  const revealed = revealedFields.has(v.id)
+                  const displayValue =
+                    v.secret && !revealed ? "••••••••" : v.value
+                  return (
+                    <div
+                      key={v.id}
                       className={cn(
-                        "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded border-2 transition-colors",
-                        v.enabled
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-muted-foreground/40 bg-transparent"
+                        "flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2.5",
+                        !v.enabled && "opacity-55"
                       )}
                     >
-                      {v.enabled && <Check className="size-3" />}
-                    </button>
-
-                    <Input
-                      value={v.key}
-                      onChange={(e) =>
-                        updateVariable(v.id, { key: e.target.value })
-                      }
-                      placeholder="KEY"
-                      className="h-8 w-32 flex-1 font-mono text-xs sm:w-40"
-                    />
-
-                    <div className="relative min-w-0 flex-1">
-                      <Input
-                        value={displayValue}
-                        onChange={(e) =>
-                          updateVariable(v.id, { value: e.target.value })
+                      <button
+                        type="button"
+                        aria-label={v.enabled ? "Disable" : "Enable"}
+                        onClick={() =>
+                          updateVariable(v.id, { enabled: !v.enabled })
                         }
-                        placeholder="value"
-                        readOnly={v.secret && !revealed}
-                        className="h-8 pr-16 font-mono text-xs"
+                        className={cn(
+                          "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded border-2 transition-colors",
+                          v.enabled
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 bg-transparent"
+                        )}
+                      >
+                        {v.enabled && <Check className="size-3" />}
+                      </button>
+
+                      <Input
+                        value={v.key}
+                        onChange={(e) =>
+                          updateVariable(v.id, { key: e.target.value })
+                        }
+                        placeholder="KEY"
+                        className="h-8 w-32 flex-1 font-mono text-xs sm:w-40"
                       />
-                      <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
-                        {v.secret && (
+
+                      <div className="relative min-w-0 flex-1">
+                        <Input
+                          value={displayValue}
+                          onChange={(e) =>
+                            updateVariable(v.id, { value: e.target.value })
+                          }
+                          placeholder="value"
+                          readOnly={v.secret && !revealed}
+                          className="h-8 pr-16 font-mono text-xs"
+                        />
+                        <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
+                          {v.secret && (
+                            <button
+                              type="button"
+                              aria-label={revealed ? "Hide" : "Reveal"}
+                              onClick={() => toggleReveal(v.id)}
+                              className="flex size-6 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              {revealed ? (
+                                <EyeOff className="size-3.5" />
+                              ) : (
+                                <Eye className="size-3.5" />
+                              )}
+                            </button>
+                          )}
                           <button
                             type="button"
-                            aria-label={revealed ? "Hide" : "Reveal"}
-                            onClick={() => toggleReveal(v.id)}
+                            aria-label="Copy value"
+                            onClick={() => copyValue(v.id, v.value)}
                             className="flex size-6 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
                           >
-                            {revealed ? (
-                              <EyeOff className="size-3.5" />
+                            {copiedId === v.id ? (
+                              <Check className="size-3.5 text-emerald-600" />
                             ) : (
-                              <Eye className="size-3.5" />
+                              <Copy className="size-3.5" />
                             )}
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          aria-label="Copy value"
-                          onClick={() => copyValue(v.id, v.value)}
-                          className="flex size-6 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                        >
-                          {copiedId === v.id ? (
-                            <Check className="size-3.5 text-emerald-600" />
-                          ) : (
-                            <Copy className="size-3.5" />
-                          )}
-                        </button>
+                        </div>
                       </div>
+
+                      <button
+                        type="button"
+                        aria-label={v.secret ? "Not secret" : "Mark secret"}
+                        onClick={() =>
+                          updateVariable(v.id, { secret: !v.secret })
+                        }
+                        className={cn(
+                          "cursor-pointer rounded px-1.5 py-1 text-[10px] font-semibold transition-colors",
+                          v.secret
+                            ? "bg-amber-500/15 text-amber-600"
+                            : "bg-muted text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {v.secret ? "SECRET" : "plain"}
+                      </button>
+
+                      <button
+                        type="button"
+                        aria-label="Remove variable"
+                        onClick={() => removeVariable(v.id)}
+                        className="flex size-7 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
                     </div>
-
-                    <button
-                      type="button"
-                      aria-label={v.secret ? "Not secret" : "Mark secret"}
-                      onClick={() =>
-                        updateVariable(v.id, { secret: !v.secret })
-                      }
-                      className={cn(
-                        "cursor-pointer rounded px-1.5 py-1 text-[10px] font-semibold transition-colors",
-                        v.secret
-                          ? "bg-amber-500/15 text-amber-600"
-                          : "bg-muted text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {v.secret ? "SECRET" : "plain"}
-                    </button>
-
-                    <button
-                      type="button"
-                      aria-label="Remove variable"
-                      onClick={() => removeVariable(v.id)}
-                      className="flex size-7 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={addVariable}
-            className="mt-3 w-full border-dashed"
-          >
-            <Plus /> Add variable
-          </Button>
-        </div>
-
-        <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-background/95 px-5 py-3 backdrop-blur sm:px-6">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ShieldCheck className="size-4 text-emerald-500" />
-            {dirty ? (
-              <span className="font-medium text-amber-600">
-                Unsaved changes
-              </span>
-            ) : (
-              <span>Encrypted on this device</span>
+                  )
+                })}
+              </div>
             )}
-          </div>
-          <div className="flex items-center gap-2">
+
             <Button
               variant="outline"
-              onClick={() => handleClose(false)}
-              className="min-w-20"
+              size="sm"
+              onClick={addVariable}
+              className="mt-3 w-full border-dashed"
             >
-              {dirty ? "Discard" : "Close"}
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!dirty || saving}
-              className="min-w-28"
-            >
-              {saving ? "Saving..." : "Save changes"}
+              <Plus /> Add variable
             </Button>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-background/95 px-5 py-3 backdrop-blur sm:px-6">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <ShieldCheck className="size-4 text-emerald-500" />
+              {dirty ? (
+                <span className="font-medium text-amber-600">
+                  Unsaved changes
+                </span>
+              ) : (
+                <span>Encrypted on this device</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => handleClose(false)}
+                className="min-w-20"
+              >
+                {dirty ? "Discard" : "Close"}
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={!dirty || saving}
+                className="min-w-28"
+              >
+                {saving ? "Saving..." : "Save changes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title="Discard changes?"
+        description="Your unsaved changes will be lost. This cannot be undone."
+        confirmLabel="Discard"
+        destructive
+        onConfirm={confirmDiscard}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Move to Trash?"
+        description="This project will be moved to Trash. You can restore it later."
+        confirmLabel="Move to Trash"
+        destructive
+        onConfirm={confirmDelete}
+      />
+    </>
   )
 }

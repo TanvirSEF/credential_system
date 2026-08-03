@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { RefreshCw, Trash2 } from "lucide-react"
 import {
   DecryptedCredential,
@@ -41,6 +42,7 @@ function TrashDashboardContent() {
   const [credList, setCredList] = useState<DecryptedCredential[]>([])
   const [projList, setProjList] = useState<DecryptedProject[]>([])
   const [loading, setLoading] = useState(true)
+  const [purgeId, setPurgeId] = useState<string | null>(null)
 
   const loadTrash = useCallback(async () => {
     if (!vaultId || !vaultKey) return
@@ -119,14 +121,18 @@ function TrashDashboardContent() {
     loadTrash()
   }
 
-  async function handlePermanentDelete(id: string) {
-    if (!confirm("Permanently delete this item? This action cannot be undone."))
-      return
+  function handlePermanentDelete(id: string) {
+    setPurgeId(id)
+  }
+
+  async function confirmPurge() {
+    if (!purgeId) return
     if (trashType === "credentials") {
-      await permanentDeleteCredentialAction(id)
+      await permanentDeleteCredentialAction(purgeId)
     } else {
-      await permanentDeleteProjectAction(id)
+      await permanentDeleteProjectAction(purgeId)
     }
+    setPurgeId(null)
     loadTrash()
   }
 
@@ -281,6 +287,18 @@ function TrashDashboardContent() {
               ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={purgeId !== null}
+        onOpenChange={(o) => {
+          if (!o) setPurgeId(null)
+        }}
+        title="Permanently delete?"
+        description="This item will be permanently deleted. This action cannot be undone."
+        confirmLabel="Delete forever"
+        destructive
+        onConfirm={confirmPurge}
+      />
     </div>
   )
 }
