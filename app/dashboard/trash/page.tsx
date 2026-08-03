@@ -1,32 +1,41 @@
-"use client";
+"use client"
 
-import { useEffect, useState, useCallback } from "react";
-import { VaultGuard } from "@/components/vault-guard";
-import { useVaultSessionStore } from "@/stores/vault-session-store";
-import { decryptPayload } from "@/lib/crypto";
+import { useEffect, useState, useCallback } from "react"
+import { VaultGuard } from "@/components/vault-guard"
+import { useVaultSessionStore } from "@/stores/vault-session-store"
+import { decryptPayload } from "@/lib/crypto"
 import {
   fetchTrashCredentialsAction,
   permanentDeleteCredentialAction,
   restoreCredentialAction,
-} from "@/lib/actions/credentials";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { ArrowLeft, RefreshCw, Trash2 } from "lucide-react";
-import { DecryptedCredential, DecryptedCredentialPayload } from "@/lib/types/credential";
+} from "@/lib/actions/credentials"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
+import { ArrowLeft, RefreshCw, Trash2 } from "lucide-react"
+import {
+  DecryptedCredential,
+  DecryptedCredentialPayload,
+} from "@/lib/types/credential"
 
 function TrashDashboardContent() {
-  const { vaultKey, vaultId } = useVaultSessionStore();
+  const { vaultKey, vaultId } = useVaultSessionStore()
 
-  const [trashList, setTrashList] = useState<DecryptedCredential[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [trashList, setTrashList] = useState<DecryptedCredential[]>([])
+  const [loading, setLoading] = useState(true)
 
   const loadTrash = useCallback(async () => {
-    if (!vaultId || !vaultKey) return;
-    setLoading(true);
+    if (!vaultId || !vaultKey) return
+    setLoading(true)
 
-    const res = await fetchTrashCredentialsAction(vaultId);
+    const res = await fetchTrashCredentialsAction(vaultId)
     if (res.credentials && res.credentials.length > 0) {
       const decrypted = await Promise.all(
         res.credentials.map(async (c) => ({
@@ -48,86 +57,108 @@ function TrashDashboardContent() {
             vaultKey
           ),
         }))
-      );
-      setTrashList(decrypted);
+      )
+      setTrashList(decrypted)
     } else {
-      setTrashList([]);
+      setTrashList([])
     }
-    setLoading(false);
-  }, [vaultId, vaultKey]);
+    setLoading(false)
+  }, [vaultId, vaultKey])
 
   useEffect(() => {
-    loadTrash();
-  }, [loadTrash]);
+    loadTrash()
+  }, [loadTrash])
 
   async function handleRestore(id: string) {
-    await restoreCredentialAction(id);
-    loadTrash();
+    await restoreCredentialAction(id)
+    loadTrash()
   }
 
   async function handlePermanentDelete(id: string) {
-    if (!confirm("Permanently delete this item? This action cannot be undone.")) return;
-    await permanentDeleteCredentialAction(id);
-    loadTrash();
+    if (!confirm("Permanently delete this item? This action cannot be undone."))
+      return
+    await permanentDeleteCredentialAction(id)
+    loadTrash()
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 max-w-[1200px]">
+    <div className="max-w-[1200px] space-y-6 p-6 lg:p-8">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-extrabold tracking-tight font-heading">Trash & Recovery</h1>
-          <p className="text-sm text-muted-foreground">Soft-deleted items retained for 30 days · {trashList.length} items</p>
+          <h1 className="font-heading text-2xl font-extrabold tracking-tight">
+            Trash & Recovery
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Soft-deleted items retained for 30 days · {trashList.length} items
+          </p>
         </div>
       </div>
 
-        {loading ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">
-            Decrypting trash entries...
-          </div>
-        ) : trashList.length === 0 ? (
-          <Card className="text-center py-12">
-            <CardHeader>
-              <CardTitle>Trash is Empty</CardTitle>
-              <CardDescription>No deleted credentials found in your trash bin.</CardDescription>
-            </CardHeader>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {trashList.map((item) => (
-              <Card key={item.id} className="shadow-sm">
-                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                  <div>
-                    <CardTitle className="text-base font-bold">{item.payload.title}</CardTitle>
-                    {item.payload.subtitle && (
-                      <CardDescription className="font-mono text-xs">{item.payload.subtitle}</CardDescription>
-                    )}
-                  </div>
-                  <Badge variant="destructive" className="text-[10px]">
-                    Deleted
-                  </Badge>
-                </CardHeader>
+      {loading ? (
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          Decrypting trash entries...
+        </div>
+      ) : trashList.length === 0 ? (
+        <Card className="py-12 text-center">
+          <CardHeader>
+            <CardTitle>Trash is Empty</CardTitle>
+            <CardDescription>
+              No deleted credentials found in your trash bin.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {trashList.map((item) => (
+            <Card key={item.id} className="shadow-sm">
+              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                <div>
+                  <CardTitle className="text-base font-bold">
+                    {item.payload.title}
+                  </CardTitle>
+                  {item.payload.subtitle && (
+                    <CardDescription className="font-mono text-xs">
+                      {item.payload.subtitle}
+                    </CardDescription>
+                  )}
+                </div>
+                <Badge variant="destructive" className="text-[10px]">
+                  Deleted
+                </Badge>
+              </CardHeader>
 
-                <CardContent className="flex items-center justify-between pt-4 border-t mt-3">
-                  <div className="text-xs text-muted-foreground">
-                    Deleted on: {item.deletedAt ? new Date(item.deletedAt).toLocaleDateString() : "Recent"}
-                  </div>
+              <CardContent className="mt-3 flex items-center justify-between border-t pt-4">
+                <div className="text-xs text-muted-foreground">
+                  Deleted on:{" "}
+                  {item.deletedAt
+                    ? new Date(item.deletedAt).toLocaleDateString()
+                    : "Recent"}
+                </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => handleRestore(item.id)}>
-                      <RefreshCw className="h-4 w-4 mr-1.5" /> Restore
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => handlePermanentDelete(item.id)}>
-                      <Trash2 className="h-4 w-4 mr-1.5" /> Purge
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRestore(item.id)}
+                  >
+                    <RefreshCw className="mr-1.5 h-4 w-4" /> Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handlePermanentDelete(item.id)}
+                  >
+                    <Trash2 className="mr-1.5 h-4 w-4" /> Purge
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
-  );
+  )
 }
 
 export default function TrashDashboardPage() {
@@ -135,5 +166,5 @@ export default function TrashDashboardPage() {
     <VaultGuard>
       <TrashDashboardContent />
     </VaultGuard>
-  );
+  )
 }

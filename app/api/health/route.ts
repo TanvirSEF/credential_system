@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server"
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"
 
 export function GET() {
   return NextResponse.json(
@@ -19,5 +19,5 @@ export function GET() {
         "Cache-Control": "no-store",
       },
     }
-  );
+  )
 }

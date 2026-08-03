@@ -1,7 +1,7 @@
-import Link from "next/link";
-import { CloudOff, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
-import { BrandLogo } from "@/components/brand-logo";
-import { Button } from "@/components/ui/button";
+import Link from "next/link"
+import { CloudOff, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react"
+import { BrandLogo } from "@/components/brand-logo"
+import { Button } from "@/components/ui/button"
 
 export default function OfflinePage() {
   return (
@@ -17,15 +17,19 @@ export default function OfflinePage() {
           <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-amber-500/20 bg-amber-500/10 text-amber-500">
             <CloudOff className="size-6" />
           </div>
-          <h1 className="mt-5 font-heading text-2xl font-extrabold">You&apos;re offline</h1>
+          <h1 className="mt-5 font-heading text-2xl font-extrabold">
+            You&apos;re offline
+          </h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Secure Personal Vault needs a connection to verify your session and load encrypted data.
+            Secure Personal Vault needs a connection to verify your session and
+            load encrypted data.
           </p>
 
           <div className="mt-5 rounded-xl border bg-muted/20 p-3.5 text-left">
             <div className="flex items-start gap-2.5 text-xs leading-relaxed text-muted-foreground">
               <LockKeyhole className="mt-0.5 size-4 shrink-0 text-primary" />
-              Authenticated pages and encrypted records are intentionally never stored in the offline page cache.
+              Authenticated pages and encrypted records are intentionally never
+              stored in the offline page cache.
             </div>
           </div>
 
@@ -39,5 +43,5 @@ export default function OfflinePage() {
         </div>
       </section>
     </main>
-  );
+  )
 }

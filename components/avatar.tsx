@@ -1,12 +1,12 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 
 function initialsFrom(name?: string | null): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
-  return (first + last).toUpperCase();
+  if (!name) return "?"
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return "?"
+  const first = parts[0]?.[0] ?? ""
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : ""
+  return (first + last).toUpperCase()
 }
 
 export function Avatar({
@@ -14,11 +14,11 @@ export function Avatar({
   name,
   className,
 }: {
-  avatarUrl?: string | null;
-  name?: string | null;
-  className?: string;
+  avatarUrl?: string | null
+  name?: string | null
+  className?: string
 }) {
-  const alt = name ? `${name}'s avatar` : "User avatar";
+  const alt = name ? `${name}'s avatar` : "User avatar"
   return (
     <div
       className={cn(
@@ -29,14 +29,10 @@ export function Avatar({
     >
       {avatarUrl ? (
         /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          src={avatarUrl}
-          alt={alt}
-          className="h-full w-full object-cover"
-        />
+        <img src={avatarUrl} alt={alt} className="h-full w-full object-cover" />
       ) : (
         <span>{initialsFrom(name)}</span>
       )}
     </div>
-  );
+  )
 }

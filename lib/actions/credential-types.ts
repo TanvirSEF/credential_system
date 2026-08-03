@@ -1,17 +1,19 @@
-"use server";
+"use server"
 
-import { createClient } from "@/lib/supabase/server";
-import { credentialTypes } from "@/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
-import { withRls } from "@/db/rls";
-import { vaultOwnedBy } from "./_shared";
+import { createClient } from "@/lib/supabase/server"
+import { credentialTypes } from "@/db/schema"
+import { eq, and, isNull } from "drizzle-orm"
+import { withRls } from "@/db/rls"
+import { vaultOwnedBy } from "./_shared"
 
 export async function fetchCredentialTypesAction(vaultId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated.", types: [] };
+    return { error: "Not authenticated.", types: [] }
   }
 
   const rows = await withRls(user.id, (tx) =>
@@ -25,28 +27,30 @@ export async function fetchCredentialTypesAction(vaultId: string) {
           isNull(credentialTypes.archivedAt)
         )
       )
-  );
+  )
 
-  return { error: null, types: rows };
+  return { error: null, types: rows }
 }
 
 export async function createCredentialTypeAction(payload: {
-  vaultId: string;
-  parentId?: string;
-  payloadCiphertext: string;
-  iv: string;
-  sortOrder: number;
+  vaultId: string
+  parentId?: string
+  payloadCiphertext: string
+  iv: string
+  sortOrder: number
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated." };
+    return { error: "Not authenticated." }
   }
 
   return withRls(user.id, async (tx) => {
     if (!(await vaultOwnedBy(tx, payload.vaultId, user.id))) {
-      return { error: "Vault not found." };
+      return { error: "Vault not found." }
     }
 
     const inserted = await tx
@@ -61,18 +65,20 @@ export async function createCredentialTypeAction(payload: {
         cryptoVersion: 1,
         schemaVersion: 1,
       })
-      .returning();
+      .returning()
 
-    return { success: true, newType: inserted[0] };
-  });
+    return { success: true, newType: inserted[0] }
+  })
 }
 
 export async function archiveCredentialTypeAction(typeId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated." };
+    return { error: "Not authenticated." }
   }
 
   await withRls(user.id, (tx) =>
@@ -85,7 +91,7 @@ export async function archiveCredentialTypeAction(typeId: string) {
           eq(credentialTypes.ownerId, user.id)
         )
       )
-  );
+  )
 
-  return { success: true };
+  return { success: true }
 }

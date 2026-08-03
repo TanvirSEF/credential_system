@@ -1,48 +1,120 @@
-"use client";
+"use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { VaultGuard } from "@/components/vault-guard";
-import { useVaultSessionStore } from "@/stores/vault-session-store";
-import { decryptPayload } from "@/lib/crypto";
-import { fetchCredentialsAction } from "@/lib/actions/credentials";
-import { fetchCredentialTypesAction } from "@/lib/actions/credential-types";
-import { setCachedCredentials, getCachedCredentials } from "@/lib/storage/indexed-db";
-import { subscribeBroadcast, broadcastMessage } from "@/lib/storage/broadcast-channel";
-import { CreateCredentialDialog } from "@/components/credentials/create-credential-dialog";
-import { CredentialDetailDialog } from "@/components/credentials/credential-detail-dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, Star, ExternalLink, Search } from "lucide-react";
-import { DecryptedCredential, DecryptedCredentialPayload } from "@/lib/types/credential";
-import { DecryptedCredentialType, CredentialTypePayload } from "@/lib/types/credential-template";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { VaultGuard } from "@/components/vault-guard"
+import { useVaultSessionStore } from "@/stores/vault-session-store"
+import { decryptPayload, encryptPayload } from "@/lib/crypto"
+import {
+  fetchCredentialsAction,
+  updateCredentialAction,
+} from "@/lib/actions/credentials"
+import { fetchCredentialTypesAction } from "@/lib/actions/credential-types"
+import {
+  setCachedCredentials,
+  getCachedCredentials,
+} from "@/lib/storage/indexed-db"
+import {
+  subscribeBroadcast,
+  broadcastMessage,
+} from "@/lib/storage/broadcast-channel"
+import { CreateCredentialDialog } from "@/components/credentials/create-credential-dialog"
+import { CredentialDetailDialog } from "@/components/credentials/credential-detail-dialog"
+import { CategoryTabs } from "@/components/credentials/category-tabs"
+import { CredentialCard } from "@/components/credentials/credential-card"
+import { CredentialRow } from "@/components/credentials/credential-row"
+import { Input } from "@/components/ui/input"
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { resolveCategory } from "@/lib/credential-ui"
+import { cn } from "@/lib/utils"
+import type {
+  DecryptedCredential,
+  DecryptedCredentialPayload,
+} from "@/lib/types/credential"
+import type {
+  DecryptedCredentialType,
+  CredentialTypePayload,
+} from "@/lib/types/credential-template"
+import {
+  Search,
+  LayoutGrid,
+  List as ListIcon,
+  ChevronRight,
+  KeyRound,
+  Star,
+} from "lucide-react"
+
+type SortBy = "name-asc" | "name-desc" | "updated" | "created"
+
+const SORT_LABELS: Record<SortBy, string> = {
+  "name-asc": "Name (A–Z)",
+  "name-desc": "Name (Z–A)",
+  updated: "Recently updated",
+  created: "Recently added",
+}
+
+function compareCredentials(
+  a: DecryptedCredential,
+  b: DecryptedCredential,
+  sortBy: SortBy
+) {
+  if (sortBy === "name-asc" || sortBy === "name-desc") {
+    const fa = a.payload.favorite ? 1 : 0
+    const fb = b.payload.favorite ? 1 : 0
+    if (fa !== fb) return fb - fa
+  }
+  switch (sortBy) {
+    case "name-asc":
+      return a.payload.title.localeCompare(b.payload.title)
+    case "name-desc":
+      return b.payload.title.localeCompare(a.payload.title)
+    case "updated":
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    case "created":
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    default:
+      return 0
+  }
+}
 
 function CredentialsContent() {
-  const router = useRouter();
-  const { vaultKey, vaultId } = useVaultSessionStore();
+  const { vaultKey, vaultId } = useVaultSessionStore()
 
-  const [credentialsList, setCredentialsList] = useState<DecryptedCredential[]>([]);
-  const [types, setTypes] = useState<DecryptedCredentialType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [credentialsList, setCredentialsList] = useState<DecryptedCredential[]>(
+    []
+  )
+  const [types, setTypes] = useState<DecryptedCredentialType[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTypeId, setSelectedTypeId] = useState<string>("all");
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeFilter, setActiveFilter] = useState<string>("all")
+  const [sortBy, setSortBy] = useState<SortBy>("name-asc")
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [copiedFieldId, setCopiedFieldId] = useState<string | null>(null)
+  const clipboardTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Modals
-  const [selectedCredential, setSelectedCredential] = useState<DecryptedCredential | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [editingCredential, setEditingCredential] = useState<DecryptedCredential | null>(null);
+  const [selectedCredential, setSelectedCredential] =
+    useState<DecryptedCredential | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [editingCredential, setEditingCredential] =
+    useState<DecryptedCredential | null>(null)
 
   const loadData = useCallback(async () => {
-    if (!vaultId || !vaultKey) return;
+    if (!vaultId || !vaultKey) return
 
-    // 1. Instant Cold Start from IndexedDB Cache
-    const cachedRows = await getCachedCredentials(vaultId);
+    const cachedRows = await getCachedCredentials(vaultId)
     if (cachedRows.length > 0) {
       const decryptedCached = await Promise.all(
         cachedRows.map(async (c) => ({
@@ -64,15 +136,14 @@ function CredentialsContent() {
             vaultKey
           ),
         }))
-      );
-      setCredentialsList(decryptedCached);
-      setLoading(false);
+      )
+      setCredentialsList(decryptedCached)
+      setLoading(false)
     } else {
-      setLoading(true);
+      setLoading(true)
     }
 
-    // 2. Fetch Fresh Data from Supabase
-    const typesRes = await fetchCredentialTypesAction(vaultId);
+    const typesRes = await fetchCredentialTypesAction(vaultId)
     if (typesRes.types && typesRes.types.length > 0) {
       const decryptedTypes = await Promise.all(
         typesRes.types.map(async (t) => ({
@@ -92,11 +163,11 @@ function CredentialsContent() {
             vaultKey
           ),
         }))
-      );
-      setTypes(decryptedTypes);
+      )
+      setTypes(decryptedTypes)
     }
 
-    const credsRes = await fetchCredentialsAction(vaultId);
+    const credsRes = await fetchCredentialsAction(vaultId)
     if (credsRes.credentials && credsRes.credentials.length > 0) {
       const decryptedCreds = await Promise.all(
         credsRes.credentials.map(async (c) => ({
@@ -118,10 +189,9 @@ function CredentialsContent() {
             vaultKey
           ),
         }))
-      );
-      setCredentialsList(decryptedCreds);
+      )
+      setCredentialsList(decryptedCreds)
 
-      // Save encrypted rows to IndexedDB cache
       setCachedCredentials(
         vaultId,
         credsRes.credentials.map((r) => ({
@@ -135,193 +205,380 @@ function CredentialsContent() {
           deletedAt: r.deletedAt,
           updatedAt: r.updatedAt,
         }))
-      );
+      )
     } else {
-      setCredentialsList([]);
-      setCachedCredentials(vaultId, []);
+      setCredentialsList([])
+      setCachedCredentials(vaultId, [])
     }
 
-    setLoading(false);
-  }, [vaultId, vaultKey]);
+    setLoading(false)
+  }, [vaultId, vaultKey])
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData()
+  }, [loadData])
 
-  // Listen for broadcast cache invalidation events from other tabs
   useEffect(() => {
     return subscribeBroadcast((msg) => {
       if (msg.type === "CACHE_INVALIDATED") {
-        loadData();
+        loadData()
       }
-    });
-  }, [loadData]);
+    })
+  }, [loadData])
 
-  const filteredCredentials = useMemo(() => {
-    return credentialsList.filter((item) => {
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const titleMatch = item.payload.title?.toLowerCase().includes(query);
-        const subtitleMatch = item.payload.subtitle?.toLowerCase().includes(query);
-        const websiteMatch = item.payload.websiteUrls?.some((u) => u.toLowerCase().includes(query));
-        const tagMatch = item.payload.tags?.some((t) => t.toLowerCase().includes(query));
+  useEffect(() => {
+    return () => {
+      if (clipboardTimer.current) clearTimeout(clipboardTimer.current)
+    }
+  }, [])
 
-        if (!titleMatch && !subtitleMatch && !websiteMatch && !tagMatch) {
-          return false;
-        }
+  const counts = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const item of credentialsList) {
+      if (item.typeId) map[item.typeId] = (map[item.typeId] ?? 0) + 1
+    }
+    return map
+  }, [credentialsList])
+
+  const favoritesCount = useMemo(
+    () => credentialsList.filter((c) => c.payload.favorite).length,
+    [credentialsList]
+  )
+
+  const visibleCredentials = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    const filtered = credentialsList.filter((item) => {
+      if (query) {
+        const haystack = [
+          item.payload.title,
+          item.payload.subtitle ?? "",
+          ...(item.payload.websiteUrls ?? []),
+          ...(item.payload.tags ?? []),
+        ]
+          .join(" ")
+          .toLowerCase()
+        if (!haystack.includes(query)) return false
       }
+      if (activeFilter === "favorites") return !!item.payload.favorite
+      if (activeFilter !== "all" && item.typeId !== activeFilter) return false
+      return true
+    })
+    return filtered.slice().sort((a, b) => compareCredentials(a, b, sortBy))
+  }, [credentialsList, searchQuery, activeFilter, sortBy])
 
-      if (selectedTypeId !== "all" && item.typeId !== selectedTypeId) {
-        return false;
+  const isGrouped = activeFilter === "all" && !searchQuery.trim()
+
+  const groupedSections = useMemo(() => {
+    if (!isGrouped) return null
+    const buckets = new Map<string, DecryptedCredential[]>()
+    for (const item of visibleCredentials) {
+      const key = item.typeId ?? "__none"
+      if (!buckets.has(key)) buckets.set(key, [])
+      buckets.get(key)!.push(item)
+    }
+    const sections: Array<{
+      key: string
+      label: string
+      icon?: string
+      items: DecryptedCredential[]
+    }> = []
+    const sortedTypes = [...types].sort((a, b) => a.sortOrder - b.sortOrder)
+    for (const t of sortedTypes) {
+      if (t.archivedAt) continue
+      const items = buckets.get(t.id)
+      if (items && items.length) {
+        sections.push({
+          key: t.id,
+          label: t.payload.name,
+          icon: t.payload.icon,
+          items,
+        })
       }
+    }
+    const none = buckets.get("__none")
+    if (none && none.length) {
+      sections.push({ key: "__none", label: "Uncategorized", items: none })
+    }
+    return sections
+  }, [isGrouped, visibleCredentials, types])
 
-      if (favoritesOnly && !item.payload.favorite) {
-        return false;
-      }
+  function handleOpen(credential: DecryptedCredential) {
+    setSelectedCredential(credential)
+    setDetailOpen(true)
+  }
 
-      return true;
-    });
-  }, [credentialsList, searchQuery, selectedTypeId, favoritesOnly]);
+  function handleCopy(fieldId: string, value: string) {
+    navigator.clipboard.writeText(value).catch(() => {})
+    setCopiedFieldId(fieldId)
+    setTimeout(
+      () => setCopiedFieldId((prev) => (prev === fieldId ? null : prev)),
+      2500
+    )
+    if (clipboardTimer.current) clearTimeout(clipboardTimer.current)
+    clipboardTimer.current = setTimeout(() => {
+      navigator.clipboard.writeText("").catch(() => {})
+    }, 20000)
+  }
+
+  async function handleToggleFavorite(credential: DecryptedCredential) {
+    if (!vaultKey) return
+    const nextFavorite = !credential.payload.favorite
+    const updated: DecryptedCredential = {
+      ...credential,
+      payload: { ...credential.payload, favorite: nextFavorite },
+    }
+    setCredentialsList((prev) =>
+      prev.map((c) => (c.id === credential.id ? updated : c))
+    )
+    if (selectedCredential?.id === credential.id) setSelectedCredential(updated)
+    try {
+      const encrypted = await encryptPayload(updated.payload, vaultKey)
+      const result = await updateCredentialAction({
+        id: credential.id,
+        typeId: credential.typeId || undefined,
+        payloadCiphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        version: credential.version,
+      })
+      if (result.error) throw new Error(result.error)
+      broadcastMessage({ type: "CACHE_INVALIDATED" })
+      loadData()
+    } catch (err) {
+      console.error("Failed to toggle favorite", err)
+      loadData()
+    }
+  }
+
+  function toggleGroup(key: string) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function renderItem(item: DecryptedCredential) {
+    const category = resolveCategory(item, types)
+    const common = {
+      credential: item,
+      category,
+      copiedFieldId,
+      onOpen: handleOpen,
+      onCopy: handleCopy,
+      onToggleFavorite: handleToggleFavorite,
+    }
+    return viewMode === "list" ? (
+      <CredentialRow key={item.id} {...common} />
+    ) : (
+      <CredentialCard key={item.id} {...common} />
+    )
+  }
+
+  const hasAny = credentialsList.length > 0
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 max-w-[1200px]">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="max-w-300 space-y-6 p-6 lg:p-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-extrabold tracking-tight font-heading">Encrypted Credentials</h1>
-          <p className="text-sm text-muted-foreground">Manage your passwords, API keys, and secrets</p>
+          <h1 className="font-heading text-2xl font-extrabold tracking-tight">
+            Encrypted Credentials
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {hasAny ? (
+              <>
+                <span className="font-medium text-foreground">
+                  {credentialsList.length}
+                </span>{" "}
+                credentials ·{" "}
+                <Star className="inline size-3.5 fill-amber-400 align-text-bottom text-amber-400" />
+                <span className="font-medium text-foreground">
+                  {" "}
+                  {favoritesCount}
+                </span>{" "}
+                favorites
+              </>
+            ) : (
+              "Manage your passwords, API keys, and secrets"
+            )}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <CreateCredentialDialog
-            existingTypes={types}
-            editCredential={editingCredential}
-            onSaved={() => {
-              setEditingCredential(null);
-              broadcastMessage({ type: "CACHE_INVALIDATED" });
-              loadData();
-            }}
+        <CreateCredentialDialog
+          existingTypes={types}
+          editCredential={editingCredential}
+          onSaved={() => {
+            setEditingCredential(null)
+            broadcastMessage({ type: "CACHE_INVALIDATED" })
+            loadData()
+          }}
+        />
+      </div>
+
+      {hasAny && (
+        <>
+          <CategoryTabs
+            types={types}
+            counts={counts}
+            favoritesCount={favoritesCount}
+            totalCount={credentialsList.length}
+            active={activeFilter}
+            onChange={setActiveFilter}
           />
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="space-y-6">
-        {/* Search Bar & Filters */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-xl border shadow-sm">
-          <div className="relative w-full md:w-1/2">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search titles, usernames, websites, or tags in memory..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search by title, account, website, or tag..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <select
-              value={selectedTypeId}
-              onChange={(e) => setSelectedTypeId(e.target.value)}
-              className="rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">All Categories</option>
-              {types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.payload.name}
-                </option>
-              ))}
-            </select>
-
-            <Button
-              variant={favoritesOnly ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFavoritesOnly(!favoritesOnly)}
-            >
-              <Star className="h-4 w-4 mr-1.5 fill-current" /> Favorites
-            </Button>
-          </div>
-        </div>
-
-        {/* Credentials Grid */}
-        {loading ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">
-            Decrypting credentials in secure memory...
-          </div>
-        ) : filteredCredentials.length === 0 ? (
-          <Card className="text-center py-12">
-            <CardHeader>
-              <CardTitle>No Credentials Found</CardTitle>
-              <CardDescription>
-                {searchQuery || selectedTypeId !== "all" || favoritesOnly
-                  ? "No items match your active search filters."
-                  : "Click '+ Add New Credential' above to store your first encrypted entry."}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCredentials.map((item) => (
-              <Card
-                key={item.id}
-                className="shadow-sm hover:shadow-md transition-shadow cursor-pointer relative"
-                onClick={() => {
-                  setSelectedCredential(item);
-                  setDetailOpen(true);
-                }}
+            <div className="flex items-center gap-2">
+              <Select
+                value={sortBy}
+                onValueChange={(v) => setSortBy((v || "name-asc") as SortBy)}
               >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-base font-bold truncate">
-                      {item.payload.title}
-                    </CardTitle>
-                    {item.payload.favorite && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
-                  </div>
-                  {item.payload.subtitle && (
-                    <CardDescription className="truncate text-xs font-mono">
-                      {item.payload.subtitle}
-                    </CardDescription>
-                  )}
-                </CardHeader>
+                <SelectTrigger className="w-42.5">
+                  <SelectValue>{SORT_LABELS[sortBy]}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name-asc">Name (A–Z)</SelectItem>
+                  <SelectItem value="name-desc">Name (Z–A)</SelectItem>
+                  <SelectItem value="updated">Recently updated</SelectItem>
+                  <SelectItem value="created">Recently added</SelectItem>
+                </SelectContent>
+              </Select>
 
-                <CardContent className="space-y-3 pt-0">
-                  {item.payload.websiteUrls && item.payload.websiteUrls.length > 0 && (
-                    <div className="text-xs text-primary truncate flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" /> {item.payload.websiteUrls[0]}
-                    </div>
+              <div className="flex items-center rounded-lg border bg-card p-0.5">
+                <button
+                  type="button"
+                  aria-label="Grid view"
+                  onClick={() => setViewMode("grid")}
+                  className={cn(
+                    "flex size-8 cursor-pointer items-center justify-center rounded-md transition-colors",
+                    viewMode === "grid"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
-
-                  {item.payload.tags && item.payload.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {item.payload.tags.map((tag, idx) => (
-                        <Badge key={idx} variant="outline" className="text-[10px]">
-                          #{tag}
-                        </Badge>
-                      ))}
-                    </div>
+                >
+                  <LayoutGrid className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="List view"
+                  onClick={() => setViewMode("list")}
+                  className={cn(
+                    "flex size-8 cursor-pointer items-center justify-center rounded-md transition-colors",
+                    viewMode === "list"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
-                </CardContent>
-              </Card>
-            ))}
+                >
+                  <ListIcon className="size-4" />
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
 
-      {/* Detail View Modal */}
+      {loading ? (
+        <div className="py-16 text-center text-sm text-muted-foreground">
+          Decrypting credentials in secure memory...
+        </div>
+      ) : !hasAny ? (
+        <Card className="border-dashed py-16 text-center">
+          <CardHeader className="items-center gap-3">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <KeyRound className="size-6" />
+            </div>
+            <CardTitle className="text-lg">No credentials yet</CardTitle>
+            <CardDescription className="mx-auto max-w-sm">
+              Store your first password, API key, or secret. Everything is
+              encrypted on this device before it leaves.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : visibleCredentials.length === 0 ? (
+        <Card className="border-dashed py-12 text-center">
+          <CardHeader className="items-center gap-2">
+            <Search className="size-5 text-muted-foreground" />
+            <CardTitle className="text-base">No matches found</CardTitle>
+            <CardDescription>
+              Try a different search term or clear the active filters.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : groupedSections && groupedSections.length > 0 ? (
+        <div className="space-y-6">
+          {groupedSections.map((section) => {
+            const collapsed = collapsedGroups.has(section.key)
+            return (
+              <section key={section.key} className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(section.key)}
+                  className="flex w-full items-center gap-2 text-left"
+                >
+                  <ChevronRight
+                    className={cn(
+                      "size-4 text-muted-foreground transition-transform",
+                      !collapsed && "rotate-90"
+                    )}
+                  />
+                  <h2 className="text-sm font-semibold tracking-tight">
+                    {section.label}
+                  </h2>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground tabular-nums">
+                    {section.items.length}
+                  </span>
+                  <span className="ml-1 h-px flex-1 bg-border" />
+                </button>
+                {!collapsed && (
+                  <div
+                    className={
+                      viewMode === "list"
+                        ? "flex flex-col gap-2"
+                        : "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+                    }
+                  >
+                    {section.items.map(renderItem)}
+                  </div>
+                )}
+              </section>
+            )
+          })}
+        </div>
+      ) : (
+        <div
+          className={
+            viewMode === "list"
+              ? "flex flex-col gap-2"
+              : "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+          }
+        >
+          {visibleCredentials.map(renderItem)}
+        </div>
+      )}
+
       <CredentialDetailDialog
         credential={selectedCredential}
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onDeleted={() => {
-          broadcastMessage({ type: "CACHE_INVALIDATED" });
-          loadData();
+          broadcastMessage({ type: "CACHE_INVALIDATED" })
+          loadData()
         }}
         onEdit={(cred) => {
-          setEditingCredential(cred);
+          setEditingCredential(cred)
         }}
       />
     </div>
-  );
+  )
 }
 
 export default function CredentialsDashboardPage() {
@@ -329,5 +586,5 @@ export default function CredentialsDashboardPage() {
     <VaultGuard>
       <CredentialsContent />
     </VaultGuard>
-  );
+  )
 }

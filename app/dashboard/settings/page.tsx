@@ -1,66 +1,69 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { VaultGuard } from "@/components/vault-guard";
-import { AvatarUpload } from "@/components/avatar-upload";
-import { PwaSettingsCard } from "@/components/pwa-manager";
-import { getProfileAction, updateProfileNameAction } from "@/lib/actions/profile";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { VaultGuard } from "@/components/vault-guard"
+import { AvatarUpload } from "@/components/avatar-upload"
+import { PwaSettingsCard } from "@/components/pwa-manager"
+import {
+  getProfileAction,
+  updateProfileNameAction,
+} from "@/lib/actions/profile"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+} from "@/components/ui/card"
+import { ArrowLeft } from "lucide-react"
 
 interface ProfileState {
-  email: string;
-  fullName: string;
-  avatarUrl: string | null;
+  email: string
+  fullName: string
+  avatarUrl: string | null
 }
 
 function SettingsContent() {
-  const [profile, setProfile] = useState<ProfileState | null>(null);
-  const [name, setName] = useState("");
-  const [savingName, setSavingName] = useState(false);
-  const [nameMsg, setNameMsg] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ProfileState | null>(null)
+  const [name, setName] = useState("")
+  const [savingName, setSavingName] = useState(false)
+  const [nameMsg, setNameMsg] = useState<string | null>(null)
 
   useEffect(() => {
     getProfileAction().then((p) => {
       if (p) {
-        setProfile(p);
-        setName(p.fullName);
+        setProfile(p)
+        setName(p.fullName)
       }
-    });
-  }, []);
+    })
+  }, [])
 
   async function handleSaveName(e: React.FormEvent) {
-    e.preventDefault();
-    setSavingName(true);
-    setNameMsg(null);
-    const res = await updateProfileNameAction(name);
+    e.preventDefault()
+    setSavingName(true)
+    setNameMsg(null)
+    const res = await updateProfileNameAction(name)
     if (res.error) {
-      setNameMsg(res.error);
+      setNameMsg(res.error)
     } else {
-      setNameMsg("Saved.");
-      setProfile((prev) => (prev ? { ...prev, fullName: name.trim() } : prev));
+      setNameMsg("Saved.")
+      setProfile((prev) => (prev ? { ...prev, fullName: name.trim() } : prev))
     }
-    setSavingName(false);
+    setSavingName(false)
   }
 
   if (!profile) {
     return (
       <div className="p-8 text-sm text-muted-foreground">Loading profile…</div>
-    );
+    )
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 max-w-2xl">
+    <div className="max-w-2xl space-y-6 p-6 lg:p-8">
       <div className="space-y-1">
         <Link
           href="/dashboard"
@@ -68,7 +71,7 @@ function SettingsContent() {
         >
           <ArrowLeft className="h-3 w-3" /> Back to dashboard
         </Link>
-        <h1 className="text-2xl font-extrabold tracking-tight font-heading">
+        <h1 className="font-heading text-2xl font-extrabold tracking-tight">
           Settings
         </h1>
         <p className="text-sm text-muted-foreground">{profile.email}</p>
@@ -110,7 +113,10 @@ function SettingsContent() {
                 maxLength={80}
               />
             </div>
-            <Button type="submit" disabled={savingName || name.trim().length === 0}>
+            <Button
+              type="submit"
+              disabled={savingName || name.trim().length === 0}
+            >
               {savingName ? "Saving…" : "Save"}
             </Button>
           </form>
@@ -128,7 +134,7 @@ function SettingsContent() {
 
       <PwaSettingsCard />
     </div>
-  );
+  )
 }
 
 export default function SettingsPage() {
@@ -136,5 +142,5 @@ export default function SettingsPage() {
     <VaultGuard>
       <SettingsContent />
     </VaultGuard>
-  );
+  )
 }

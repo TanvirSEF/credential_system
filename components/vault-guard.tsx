@@ -1,75 +1,76 @@
-"use client";
+"use client"
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getUserVaultStatus } from "@/lib/actions/vault";
-import { useVaultSessionStore } from "@/stores/vault-session-store";
-import { subscribeBroadcast } from "@/lib/storage/broadcast-channel";
+import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
+import { getUserVaultStatus } from "@/lib/actions/vault"
+import { useVaultSessionStore } from "@/stores/vault-session-store"
+import { subscribeBroadcast } from "@/lib/storage/broadcast-channel"
 
 export function VaultGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const isUnlocked = useVaultSessionStore((s) => s.isUnlocked);
-  const autoLockMinutes = useVaultSessionStore((s) => s.autoLockMinutes);
-  const lockVault = useVaultSessionStore((s) => s.lockVault);
-  const lastActivityRef = useRef(0);
+  const router = useRouter()
+  const isUnlocked = useVaultSessionStore((s) => s.isUnlocked)
+  const autoLockMinutes = useVaultSessionStore((s) => s.autoLockMinutes)
+  const lockVault = useVaultSessionStore((s) => s.lockVault)
+  const lastActivityRef = useRef(0)
 
-  const [loading, setLoading] = useState(true);
-  const [statusError, setStatusError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true)
+  const [statusError, setStatusError] = useState<string | null>(null)
 
   useEffect(() => {
     async function verifyGuard() {
-      const status = await getUserVaultStatus();
+      const status = await getUserVaultStatus()
       if (status.error) {
-        setStatusError(status.error);
-        setLoading(false);
+        setStatusError(status.error)
+        setLoading(false)
       } else if (!status.authenticated) {
-        router.push("/login");
+        router.push("/login")
       } else if (!status.hasVault) {
-        router.push("/setup");
+        router.push("/setup")
       } else if (!isUnlocked) {
-        router.push("/unlock");
+        router.push("/unlock")
       } else {
-        setLoading(false);
+        setLoading(false)
       }
     }
-    verifyGuard();
-  }, [router, isUnlocked]);
+    verifyGuard()
+  }, [router, isUnlocked])
 
   useEffect(() => {
     const unsubscribe = subscribeBroadcast((msg) => {
       if (msg.type === "VAULT_LOCKED") {
-        lockVault();
-        router.push("/unlock");
+        lockVault()
+        router.push("/unlock")
       }
-    });
-    return unsubscribe;
-  }, [lockVault, router]);
+    })
+    return unsubscribe
+  }, [lockVault, router])
 
   useEffect(() => {
-    if (!isUnlocked) return;
+    if (!isUnlocked) return
 
-    lastActivityRef.current = Date.now();
+    lastActivityRef.current = Date.now()
 
     const interval = setInterval(() => {
-      const elapsedMinutes = (Date.now() - lastActivityRef.current) / (1000 * 60);
+      const elapsedMinutes =
+        (Date.now() - lastActivityRef.current) / (1000 * 60)
       if (elapsedMinutes >= autoLockMinutes) {
-        lockVault();
-        router.push("/unlock");
+        lockVault()
+        router.push("/unlock")
       }
-    }, 10000);
+    }, 10000)
 
     const handleUserActivity = () => {
-      lastActivityRef.current = Date.now();
-    };
-    window.addEventListener("mousemove", handleUserActivity);
-    window.addEventListener("keydown", handleUserActivity);
+      lastActivityRef.current = Date.now()
+    }
+    window.addEventListener("mousemove", handleUserActivity)
+    window.addEventListener("keydown", handleUserActivity)
 
     return () => {
-      clearInterval(interval);
-      window.removeEventListener("mousemove", handleUserActivity);
-      window.removeEventListener("keydown", handleUserActivity);
-    };
-  }, [isUnlocked, autoLockMinutes, lockVault, router]);
+      clearInterval(interval)
+      window.removeEventListener("mousemove", handleUserActivity)
+      window.removeEventListener("keydown", handleUserActivity)
+    }
+  }, [isUnlocked, autoLockMinutes, lockVault, router])
 
   if (statusError) {
     return (
@@ -86,7 +87,7 @@ export function VaultGuard({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </div>
-    );
+    )
   }
 
   if (loading || !isUnlocked) {
@@ -94,8 +95,8 @@ export function VaultGuard({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
         Securing vault session...
       </div>
-    );
+    )
   }
 
-  return <>{children}</>;
+  return <>{children}</>
 }

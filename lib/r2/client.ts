@@ -7,4 +7,4 @@ export {
   presignPutUrl,
   presignGetUrl,
   deleteObject,
-} from "@/lib/storage/object-storage";
+} from "@/lib/storage/object-storage"

@@ -1,28 +1,42 @@
-import { encryptPayload, decryptPayload, generateVaultKey, unwrapVaultKey, wrapVaultKey } from "./aes-gcm";
-import { createKdfParams, deriveKeyFromPassword, generateSalt, DEFAULT_PBKDF2_ITERATIONS } from "./kdf";
-import { KeyEnvelope, VerificationPayload } from "./types";
-import { base64UrlToBytes, bytesToBase64Url } from "./utils";
-import { zeroizeBuffer } from "./zeroization";
+import {
+  encryptPayload,
+  decryptPayload,
+  generateVaultKey,
+  unwrapVaultKey,
+  wrapVaultKey,
+} from "./aes-gcm"
+import {
+  createKdfParams,
+  deriveKeyFromPassword,
+  generateSalt,
+  DEFAULT_PBKDF2_ITERATIONS,
+} from "./kdf"
+import { KeyEnvelope, VerificationPayload } from "./types"
+import { base64UrlToBytes, bytesToBase64Url } from "./utils"
+import { zeroizeBuffer } from "./zeroization"
 
 export async function createMasterEnvelope(
   password: string,
   vaultId?: string
 ): Promise<{ envelope: KeyEnvelope; vaultKey: CryptoKey }> {
-  const vaultKey = await generateVaultKey();
-  const salt = generateSalt(16);
-  const iterations = DEFAULT_PBKDF2_ITERATIONS;
-  
-  const masterKek = await deriveKeyFromPassword(password, salt, iterations);
-  const { wrappedKey, iv } = await wrapVaultKey(vaultKey, masterKek);
+  const vaultKey = await generateVaultKey()
+  const salt = generateSalt(16)
+  const iterations = DEFAULT_PBKDF2_ITERATIONS
+
+  const masterKek = await deriveKeyFromPassword(password, salt, iterations)
+  const { wrappedKey, iv } = await wrapVaultKey(vaultKey, masterKek)
 
   const verificationPayload: VerificationPayload = {
     purpose: "vault-key-verification",
     vaultId,
     version: 1,
-  };
-  
-  const verificationEncrypted = await encryptPayload(verificationPayload, vaultKey);
-  const kdfParams = createKdfParams(salt, iterations);
+  }
+
+  const verificationEncrypted = await encryptPayload(
+    verificationPayload,
+    vaultKey
+  )
+  const kdfParams = createKdfParams(salt, iterations)
 
   const envelope: KeyEnvelope = {
     wrappedKey,
@@ -33,30 +47,34 @@ export async function createMasterEnvelope(
     verificationCiphertext: verificationEncrypted.ciphertext,
     verificationIv: verificationEncrypted.iv,
     cryptoVersion: 1,
-  };
+  }
 
-  const rawVaultKey = await crypto.subtle.exportKey("raw", vaultKey);
+  const rawVaultKey = await crypto.subtle.exportKey("raw", vaultKey)
   const sessionVaultKey = await crypto.subtle.importKey(
     "raw",
     rawVaultKey,
     "AES-GCM",
     false,
     ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
-  );
-  zeroizeBuffer(rawVaultKey);
+  )
+  zeroizeBuffer(rawVaultKey)
 
-  return { envelope, vaultKey: sessionVaultKey };
+  return { envelope, vaultKey: sessionVaultKey }
 }
 
 export async function unlockVaultWithMasterPassword(
   password: string,
   envelope: KeyEnvelope
 ): Promise<CryptoKey> {
-  const saltBytes = base64UrlToBytes(envelope.salt);
-  const iterations = envelope.kdfParams.iterations || 100000;
-  
-  const masterKek = await deriveKeyFromPassword(password, saltBytes, iterations);
-  const vaultKey = await unwrapVaultKey(envelope.wrappedKey, envelope.iv, masterKek);
+  const saltBytes = base64UrlToBytes(envelope.salt)
+  const iterations = envelope.kdfParams.iterations || 100000
+
+  const masterKek = await deriveKeyFromPassword(password, saltBytes, iterations)
+  const vaultKey = await unwrapVaultKey(
+    envelope.wrappedKey,
+    envelope.iv,
+    masterKek
+  )
 
   if (envelope.verificationCiphertext && envelope.verificationIv) {
     const verificationPayload = await decryptPayload<VerificationPayload>(
@@ -67,12 +85,12 @@ export async function unlockVaultWithMasterPassword(
         schemaVersion: 1,
       },
       vaultKey
-    );
+    )
 
     if (verificationPayload.purpose !== "vault-key-verification") {
-      throw new Error("Invalid master password");
+      throw new Error("Invalid master password")
     }
   }
 
-  return vaultKey;
+  return vaultKey
 }

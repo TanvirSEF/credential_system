@@ -1,14 +1,14 @@
-import Image from "next/image";
-import { cn } from "@/lib/utils";
+import Image from "next/image"
+import { cn } from "@/lib/utils"
 
 export function BrandLogo({
   variant = "wordmark",
   className,
   preload = false,
 }: {
-  variant?: "wordmark" | "icon";
-  className?: string;
-  preload?: boolean;
+  variant?: "wordmark" | "icon"
+  className?: string
+  preload?: boolean
 }) {
   if (variant === "icon") {
     return (
@@ -24,10 +24,10 @@ export function BrandLogo({
           width={1536}
           height={1024}
           preload={preload}
-          className="absolute -left-[42px] -top-[76px] h-[205px] w-[307px] max-w-none"
+          className="absolute -top-[76px] -left-[42px] h-[205px] w-[307px] max-w-none"
         />
       </span>
-    );
+    )
   }
 
   return (
@@ -43,8 +43,8 @@ export function BrandLogo({
         width={1536}
         height={1024}
         preload={preload}
-        className="absolute left-1/2 top-[70%] h-auto w-[300px] max-w-none -translate-x-1/2 -translate-y-1/2 transition-[filter] dark:brightness-0 dark:invert"
+        className="absolute top-[70%] left-1/2 h-auto w-[300px] max-w-none -translate-x-1/2 -translate-y-1/2 transition-[filter] dark:brightness-0 dark:invert"
       />
     </span>
-  );
+  )
 }

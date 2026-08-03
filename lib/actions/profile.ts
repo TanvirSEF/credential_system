@@ -1,26 +1,28 @@
-"use server";
+"use server"
 
-import { createClient } from "@/lib/supabase/server";
-import { profiles } from "@/db/schema";
-import { withRls } from "@/db/rls";
+import { createClient } from "@/lib/supabase/server"
+import { profiles } from "@/db/schema"
+import { withRls } from "@/db/rls"
 import {
   objectKeyForAvatar,
   presignPutUrl,
   publicUrlFor,
-} from "@/lib/storage/object-storage";
+} from "@/lib/storage/object-storage"
 
 const ALLOWED_AVATAR_TYPES: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
-};
+}
 
 export async function getProfileAction() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
 
-  const authFullName = (user.user_metadata?.full_name as string) || "";
+  const authFullName = (user.user_metadata?.full_name as string) || ""
 
   const upserted = await withRls(user.id, (tx) =>
     tx
@@ -37,49 +39,53 @@ export async function getProfileAction() {
         fullName: profiles.fullName,
         avatarUrl: profiles.avatarUrl,
       })
-  );
+  )
 
   return {
     email: user.email || "",
     fullName: upserted[0]?.fullName ?? authFullName,
     avatarUrl: upserted[0]?.avatarUrl ?? null,
-  };
+  }
 }
 
 export async function getAvatarUploadUrlAction(contentType: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated." };
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated." }
 
-  const ext = ALLOWED_AVATAR_TYPES[contentType];
+  const ext = ALLOWED_AVATAR_TYPES[contentType]
   if (!ext) {
     return {
       error: "Unsupported image type. Use PNG, JPEG, or WebP.",
-    };
+    }
   }
 
-  const key = objectKeyForAvatar(user.id, ext);
-  const uploadUrl = await presignPutUrl(key, contentType, 120);
+  const key = objectKeyForAvatar(user.id, ext)
+  const uploadUrl = await presignPutUrl(key, contentType, 120)
   return {
     error: null,
     storagePath: key,
     uploadUrl,
     publicUrl: publicUrlFor(key),
-  };
+  }
 }
 
 export async function setAvatarAction(storagePath: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated." };
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated." }
 
   if (!storagePath.startsWith(`avatars/${user.id}/`)) {
-    return { error: "Invalid avatar path." };
+    return { error: "Invalid avatar path." }
   }
 
-  const publicUrl = publicUrlFor(storagePath);
+  const publicUrl = publicUrlFor(storagePath)
 
-  const authFullName = (user.user_metadata?.full_name as string) || "";
+  const authFullName = (user.user_metadata?.full_name as string) || ""
 
   await withRls(user.id, (tx) =>
     tx
@@ -93,19 +99,21 @@ export async function setAvatarAction(storagePath: string) {
         target: profiles.id,
         set: { avatarUrl: publicUrl, updatedAt: new Date() },
       })
-  );
+  )
 
-  return { success: true, publicUrl };
+  return { success: true, publicUrl }
 }
 
 export async function updateProfileNameAction(fullName: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated." };
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated." }
 
-  const name = fullName.trim();
+  const name = fullName.trim()
   if (name.length < 1 || name.length > 80) {
-    return { error: "Name must be 1–80 characters." };
+    return { error: "Name must be 1–80 characters." }
   }
 
   await withRls(user.id, (tx) =>
@@ -116,7 +124,7 @@ export async function updateProfileNameAction(fullName: string) {
         target: profiles.id,
         set: { fullName: name, updatedAt: new Date() },
       })
-  );
+  )
 
-  return { success: true };
+  return { success: true }
 }

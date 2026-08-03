@@ -1,6 +1,6 @@
-import { vaults } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
-import type { DbTx } from "@/db/rls";
+import { vaults } from "@/db/schema"
+import { and, eq } from "drizzle-orm"
+import type { DbTx } from "@/db/rls"
 
 export async function vaultOwnedBy(
   tx: DbTx,
@@ -10,6 +10,6 @@ export async function vaultOwnedBy(
   const rows = await tx
     .select({ id: vaults.id })
     .from(vaults)
-    .where(and(eq(vaults.id, vaultId), eq(vaults.ownerId, ownerId)));
-  return rows.length > 0;
+    .where(and(eq(vaults.id, vaultId), eq(vaults.ownerId, ownerId)))
+  return rows.length > 0
 }

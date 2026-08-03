@@ -1,17 +1,19 @@
-"use server";
+"use server"
 
-import { createClient } from "@/lib/supabase/server";
-import { credentials } from "@/db/schema";
-import { eq, and, isNull, isNotNull } from "drizzle-orm";
-import { withRls } from "@/db/rls";
-import { vaultOwnedBy } from "./_shared";
+import { createClient } from "@/lib/supabase/server"
+import { credentials } from "@/db/schema"
+import { eq, and, isNull, isNotNull } from "drizzle-orm"
+import { withRls } from "@/db/rls"
+import { vaultOwnedBy } from "./_shared"
 
 export async function fetchCredentialsAction(vaultId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated.", credentials: [] };
+    return { error: "Not authenticated.", credentials: [] }
   }
 
   const rows = await withRls(user.id, (tx) =>
@@ -25,17 +27,19 @@ export async function fetchCredentialsAction(vaultId: string) {
           isNull(credentials.deletedAt)
         )
       )
-  );
+  )
 
-  return { error: null, credentials: rows };
+  return { error: null, credentials: rows }
 }
 
 export async function fetchTrashCredentialsAction(vaultId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated.", credentials: [] };
+    return { error: "Not authenticated.", credentials: [] }
   }
 
   const rows = await withRls(user.id, (tx) =>
@@ -49,27 +53,29 @@ export async function fetchTrashCredentialsAction(vaultId: string) {
           isNotNull(credentials.deletedAt)
         )
       )
-  );
+  )
 
-  return { error: null, credentials: rows };
+  return { error: null, credentials: rows }
 }
 
 export async function createCredentialAction(payload: {
-  vaultId: string;
-  typeId?: string;
-  payloadCiphertext: string;
-  iv: string;
+  vaultId: string
+  typeId?: string
+  payloadCiphertext: string
+  iv: string
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated." };
+    return { error: "Not authenticated." }
   }
 
   return withRls(user.id, async (tx) => {
     if (!(await vaultOwnedBy(tx, payload.vaultId, user.id))) {
-      return { error: "Vault not found." };
+      return { error: "Vault not found." }
     }
 
     const inserted = await tx
@@ -83,24 +89,26 @@ export async function createCredentialAction(payload: {
         cryptoVersion: 1,
         schemaVersion: 1,
       })
-      .returning();
+      .returning()
 
-    return { success: true, newCredential: inserted[0] };
-  });
+    return { success: true, newCredential: inserted[0] }
+  })
 }
 
 export async function updateCredentialAction(payload: {
-  id: string;
-  typeId?: string;
-  payloadCiphertext: string;
-  iv: string;
-  version: number;
+  id: string
+  typeId?: string
+  payloadCiphertext: string
+  iv: string
+  version: number
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated." };
+    return { error: "Not authenticated." }
   }
 
   await withRls(user.id, (tx) =>
@@ -114,80 +122,68 @@ export async function updateCredentialAction(payload: {
         updatedAt: new Date(),
       })
       .where(
-        and(
-          eq(credentials.id, payload.id),
-          eq(credentials.ownerId, user.id)
-        )
+        and(eq(credentials.id, payload.id), eq(credentials.ownerId, user.id))
       )
-  );
+  )
 
-  return { success: true };
+  return { success: true }
 }
 
 export async function softDeleteCredentialAction(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated." };
+    return { error: "Not authenticated." }
   }
 
   await withRls(user.id, (tx) =>
     tx
       .update(credentials)
       .set({ deletedAt: new Date() })
-      .where(
-        and(
-          eq(credentials.id, id),
-          eq(credentials.ownerId, user.id)
-        )
-      )
-  );
+      .where(and(eq(credentials.id, id), eq(credentials.ownerId, user.id)))
+  )
 
-  return { success: true };
+  return { success: true }
 }
 
 export async function restoreCredentialAction(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated." };
+    return { error: "Not authenticated." }
   }
 
   await withRls(user.id, (tx) =>
     tx
       .update(credentials)
       .set({ deletedAt: null })
-      .where(
-        and(
-          eq(credentials.id, id),
-          eq(credentials.ownerId, user.id)
-        )
-      )
-  );
+      .where(and(eq(credentials.id, id), eq(credentials.ownerId, user.id)))
+  )
 
-  return { success: true };
+  return { success: true }
 }
 
 export async function permanentDeleteCredentialAction(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated." };
+    return { error: "Not authenticated." }
   }
 
   await withRls(user.id, (tx) =>
     tx
       .delete(credentials)
-      .where(
-        and(
-          eq(credentials.id, id),
-          eq(credentials.ownerId, user.id)
-        )
-      )
-  );
+      .where(and(eq(credentials.id, id), eq(credentials.ownerId, user.id)))
+  )
 
-  return { success: true };
+  return { success: true }
 }

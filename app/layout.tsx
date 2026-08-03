@@ -1,9 +1,9 @@
-import { Outfit, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
-import type { Metadata, Viewport } from "next";
-import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
-import { PwaManager } from "@/components/pwa-manager";
-import { cn } from "@/lib/utils";
+import { Outfit, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google"
+import type { Metadata, Viewport } from "next"
+import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { PwaManager } from "@/components/pwa-manager"
+import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = {
   applicationName: "Secure Personal Vault",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
-};
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -35,29 +35,29 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#2563eb" },
     { media: "(prefers-color-scheme: dark)", color: "#08132b" },
   ],
-};
+}
 
 const fontHeading = Outfit({
   subsets: ["latin"],
   variable: "--font-heading",
   weight: ["400", "500", "600", "700", "800"],
-});
+})
 
 const fontSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
   weight: ["400", "500", "600", "700"],
-});
+})
 
 const fontMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
-});
+})
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html
@@ -80,5 +80,5 @@ export default function RootLayout({
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   AlertCircle,
   ArrowLeftRight,
@@ -13,108 +13,112 @@ import {
   LockKeyhole,
   ShieldCheck,
   TriangleAlert,
-} from "lucide-react";
-import { getUserVaultStatus } from "@/lib/actions/vault";
+} from "lucide-react"
+import { getUserVaultStatus } from "@/lib/actions/vault"
 import {
   unlockVaultWithMasterPassword,
   unlockVaultWithRecoveryKey,
-} from "@/lib/crypto";
-import type { KeyEnvelope } from "@/lib/crypto/types";
-import { useVaultSessionStore } from "@/stores/vault-session-store";
-import { BrandLogo } from "@/components/brand-logo";
-import { Button } from "@/components/ui/button";
+} from "@/lib/crypto"
+import type { KeyEnvelope } from "@/lib/crypto/types"
+import { useVaultSessionStore } from "@/stores/vault-session-store"
+import { BrandLogo } from "@/components/brand-logo"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export default function UnlockVaultPage() {
-  const router = useRouter();
-  const { setUnlockedSession, isUnlocked } = useVaultSessionStore();
-  const [checking, setChecking] = useState(true);
-  const [statusUnavailable, setStatusUnavailable] = useState(false);
-  const [vaultId, setVaultId] = useState<string | null>(null);
-  const [masterEnvelope, setMasterEnvelope] = useState<KeyEnvelope | null>(null);
-  const [recoveryEnvelope, setRecoveryEnvelope] = useState<KeyEnvelope | null>(null);
-  const [masterPassword, setMasterPassword] = useState("");
-  const [recoveryKey, setRecoveryKey] = useState("");
-  const [useRecovery, setUseRecovery] = useState(false);
-  const [showSecret, setShowSecret] = useState(false);
-  const [capsLockOn, setCapsLockOn] = useState(false);
-  const [unlocking, setUnlocking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter()
+  const { setUnlockedSession, isUnlocked } = useVaultSessionStore()
+  const [checking, setChecking] = useState(true)
+  const [statusUnavailable, setStatusUnavailable] = useState(false)
+  const [vaultId, setVaultId] = useState<string | null>(null)
+  const [masterEnvelope, setMasterEnvelope] = useState<KeyEnvelope | null>(null)
+  const [recoveryEnvelope, setRecoveryEnvelope] = useState<KeyEnvelope | null>(
+    null
+  )
+  const [masterPassword, setMasterPassword] = useState("")
+  const [recoveryKey, setRecoveryKey] = useState("")
+  const [useRecovery, setUseRecovery] = useState(false)
+  const [showSecret, setShowSecret] = useState(false)
+  const [capsLockOn, setCapsLockOn] = useState(false)
+  const [unlocking, setUnlocking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function initStatus() {
-      const status = await getUserVaultStatus();
+      const status = await getUserVaultStatus()
       if (status.error) {
-        setError(status.error);
-        setStatusUnavailable(true);
-        setChecking(false);
+        setError(status.error)
+        setStatusUnavailable(true)
+        setChecking(false)
       } else if (!status.authenticated) {
-        router.replace("/login");
+        router.replace("/login")
       } else if (!status.hasVault) {
-        router.replace("/setup");
+        router.replace("/setup")
       } else if (isUnlocked) {
-        router.replace("/dashboard");
+        router.replace("/dashboard")
       } else {
-        setVaultId(status.vaultId || null);
-        setMasterEnvelope(status.masterEnvelope || null);
-        setRecoveryEnvelope(status.recoveryEnvelope || null);
-        setChecking(false);
+        setVaultId(status.vaultId || null)
+        setMasterEnvelope(status.masterEnvelope || null)
+        setRecoveryEnvelope(status.recoveryEnvelope || null)
+        setChecking(false)
       }
     }
-    initStatus();
-  }, [router, isUnlocked]);
+    initStatus()
+  }, [router, isUnlocked])
 
   async function handleUnlock(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setUnlocking(true);
+    event.preventDefault()
+    setError(null)
+    setUnlocking(true)
 
     try {
-      if (!vaultId) throw new Error("Vault not found.");
-      const inputValue = useRecovery ? recoveryKey.trim() : masterPassword.trim();
+      if (!vaultId) throw new Error("Vault not found.")
+      const inputValue = useRecovery
+        ? recoveryKey.trim()
+        : masterPassword.trim()
       const isRecoveryInput =
-        useRecovery || inputValue.toUpperCase().startsWith("SPV-");
-      let unlockedVaultKey: CryptoKey;
+        useRecovery || inputValue.toUpperCase().startsWith("SPV-")
+      let unlockedVaultKey: CryptoKey
 
       if (isRecoveryInput) {
-        if (!recoveryEnvelope) throw new Error("Recovery envelope missing.");
+        if (!recoveryEnvelope) throw new Error("Recovery envelope missing.")
         unlockedVaultKey = await unlockVaultWithRecoveryKey(
           inputValue,
           recoveryEnvelope
-        );
+        )
       } else {
-        if (!masterEnvelope) throw new Error("Master envelope missing.");
+        if (!masterEnvelope) throw new Error("Master envelope missing.")
         unlockedVaultKey = await unlockVaultWithMasterPassword(
           masterPassword,
           masterEnvelope
-        );
+        )
       }
 
-      setUnlockedSession(unlockedVaultKey, vaultId);
-      router.replace("/dashboard");
+      setUnlockedSession(unlockedVaultKey, vaultId)
+      router.replace("/dashboard")
     } catch {
       setError(
         useRecovery || masterPassword.toUpperCase().startsWith("SPV-")
           ? "That recovery key is invalid. Check every group and try again."
           : "That master password did not unlock this vault. Check it and try again."
-      );
-      setUnlocking(false);
+      )
+      setUnlocking(false)
     }
   }
 
   function switchUnlockMethod() {
-    setUseRecovery((current) => !current);
-    setShowSecret(false);
-    setCapsLockOn(false);
-    setError(null);
+    setUseRecovery((current) => !current)
+    setShowSecret(false)
+    setCapsLockOn(false)
+    setError(null)
   }
 
   if (checking) {
@@ -126,7 +130,7 @@ export default function UnlockVaultPage() {
           Securing your vault session...
         </div>
       </main>
-    );
+    )
   }
 
   if (statusUnavailable) {
@@ -139,7 +143,9 @@ export default function UnlockVaultPage() {
               <TriangleAlert className="size-6" />
             </div>
             <CardTitle>Vault service unavailable</CardTitle>
-            <CardDescription className="max-w-sm leading-relaxed">{error}</CardDescription>
+            <CardDescription className="max-w-sm leading-relaxed">
+              {error}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full" onClick={() => window.location.reload()}>
@@ -148,10 +154,10 @@ export default function UnlockVaultPage() {
           </CardContent>
         </Card>
       </main>
-    );
+    )
   }
 
-  const currentValue = useRecovery ? recoveryKey : masterPassword;
+  const currentValue = useRecovery ? recoveryKey : masterPassword
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 font-sans sm:px-6">
@@ -206,13 +212,19 @@ export default function UnlockVaultPage() {
                     {useRecovery ? "Recovery key" : "Vault master password"}
                   </Label>
                   {!useRecovery && (
-                    <span className="text-[10px] text-muted-foreground">Not your sign-in password</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Not your sign-in password
+                    </span>
                   )}
                 </div>
 
                 <div className="relative">
                   <span className="pointer-events-none absolute top-1/2 left-3 flex -translate-y-1/2 text-muted-foreground">
-                    {useRecovery ? <KeyRound className="size-4" /> : <LockKeyhole className="size-4" />}
+                    {useRecovery ? (
+                      <KeyRound className="size-4" />
+                    ) : (
+                      <LockKeyhole className="size-4" />
+                    )}
                   </span>
                   <Input
                     id="vault-secret"
@@ -222,7 +234,11 @@ export default function UnlockVaultPage() {
                     autoComplete="off"
                     autoCapitalize="none"
                     spellCheck={false}
-                    placeholder={useRecovery ? "SPV-XXXX-XXXX-XXXX-..." : "Enter your vault master password"}
+                    placeholder={
+                      useRecovery
+                        ? "SPV-XXXX-XXXX-XXXX-..."
+                        : "Enter your vault master password"
+                    }
                     value={currentValue}
                     disabled={unlocking}
                     onChange={(event) =>
@@ -230,8 +246,12 @@ export default function UnlockVaultPage() {
                         ? setRecoveryKey(event.target.value.toUpperCase())
                         : setMasterPassword(event.target.value)
                     }
-                    onKeyUp={(event) => setCapsLockOn(event.getModifierState("CapsLock"))}
-                    onKeyDown={(event) => setCapsLockOn(event.getModifierState("CapsLock"))}
+                    onKeyUp={(event) =>
+                      setCapsLockOn(event.getModifierState("CapsLock"))
+                    }
+                    onKeyDown={(event) =>
+                      setCapsLockOn(event.getModifierState("CapsLock"))
+                    }
                     className={`h-12 pr-11 pl-10 text-sm ${useRecovery ? "font-mono tracking-wider" : ""}`}
                   />
                   <button
@@ -240,7 +260,11 @@ export default function UnlockVaultPage() {
                     onClick={() => setShowSecret((current) => !current)}
                     className="absolute top-1/2 right-2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
-                    {showSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    {showSecret ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
                   </button>
                 </div>
 
@@ -253,8 +277,11 @@ export default function UnlockVaultPage() {
 
               {useRecovery && (
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs leading-relaxed text-muted-foreground">
-                  Recovery keys start with <span className="font-mono font-semibold text-foreground">SPV-</span>.
-                  Spaces and letter case are normalized automatically.
+                  Recovery keys start with{" "}
+                  <span className="font-mono font-semibold text-foreground">
+                    SPV-
+                  </span>
+                  . Spaces and letter case are normalized automatically.
                 </div>
               )}
 
@@ -314,15 +341,18 @@ export default function UnlockVaultPage() {
         </Card>
       </div>
     </main>
-  );
+  )
 }
 
 function BackgroundDecoration() {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      aria-hidden="true"
+    >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,color-mix(in_oklch,var(--foreground)_7%,transparent)_1px,transparent_0)] bg-[size:28px_28px] opacity-30" />
       <div className="absolute -top-40 left-1/2 size-[34rem] -translate-x-1/2 rounded-full bg-primary/[0.09] blur-[120px]" />
       <div className="absolute -right-40 -bottom-48 size-[28rem] rounded-full bg-violet-500/[0.07] blur-[110px]" />
     </div>
-  );
+  )
 }

@@ -1,8 +1,8 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react"
+import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
 import {
   FileText,
   Folder,
@@ -14,11 +14,11 @@ import {
   Settings,
   Trash2,
   X,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { BrandLogo } from "@/components/brand-logo";
-import { signOutAction } from "@/lib/actions/auth";
-import { useVaultSessionStore } from "@/stores/vault-session-store";
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { BrandLogo } from "@/components/brand-logo"
+import { signOutAction } from "@/lib/actions/auth"
+import { useVaultSessionStore } from "@/stores/vault-session-store"
 
 const navigation = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -27,34 +27,38 @@ const navigation = [
   { href: "/dashboard/types", label: "Categories", icon: Folder },
   { href: "/dashboard/trash", label: "Trash Bin", icon: Trash2 },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
-];
+]
 
-const primaryNavigation = navigation.slice(0, 4);
+const primaryNavigation = navigation.slice(0, 4)
 
 function routeIsActive(pathname: string, href: string) {
-  return pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+  return (
+    pathname === href || (href !== "/dashboard" && pathname.startsWith(href))
+  )
 }
 
 export function DashboardMobileNavigation() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const lockVault = useVaultSessionStore((state) => state.lockVault);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const activeItem = navigation.find((item) => routeIsActive(pathname, item.href));
+  const pathname = usePathname()
+  const router = useRouter()
+  const lockVault = useVaultSessionStore((state) => state.lockVault)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const activeItem = navigation.find((item) =>
+    routeIsActive(pathname, item.href)
+  )
   const secondaryRouteActive = navigation
     .slice(4)
-    .some((item) => routeIsActive(pathname, item.href));
+    .some((item) => routeIsActive(pathname, item.href))
 
   function handleLock() {
-    setMoreOpen(false);
-    lockVault();
-    router.push("/unlock");
+    setMoreOpen(false)
+    lockVault()
+    router.push("/unlock")
   }
 
   async function handleSignOut() {
-    setMoreOpen(false);
-    lockVault();
-    await signOutAction();
+    setMoreOpen(false)
+    lockVault()
+    await signOutAction()
   }
 
   return (
@@ -64,10 +68,10 @@ export function DashboardMobileNavigation() {
           <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
             <BrandLogo variant="icon" preload />
             <div className="min-w-0">
-              <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-400/70">
+              <p className="truncate text-[10px] font-semibold tracking-[0.16em] text-blue-400/70 uppercase">
                 Secure vault
               </p>
-              <p className="truncate text-sm font-bold leading-tight">
+              <p className="truncate text-sm leading-tight font-bold">
                 {activeItem?.label || "Dashboard"}
               </p>
             </div>
@@ -91,7 +95,7 @@ export function DashboardMobileNavigation() {
       >
         <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
           {primaryNavigation.map((item) => {
-            const isActive = routeIsActive(pathname, item.href);
+            const isActive = routeIsActive(pathname, item.href)
             return (
               <Link
                 key={item.href}
@@ -108,7 +112,7 @@ export function DashboardMobileNavigation() {
                 />
                 <span className="max-w-full truncate">{item.label}</span>
               </Link>
-            );
+            )
           })}
 
           <button
@@ -165,7 +169,7 @@ export function DashboardMobileNavigation() {
 
             <div className="grid grid-cols-2 gap-2">
               {navigation.slice(4).map((item) => {
-                const isActive = routeIsActive(pathname, item.href);
+                const isActive = routeIsActive(pathname, item.href)
                 return (
                   <Link
                     key={item.href}
@@ -182,7 +186,7 @@ export function DashboardMobileNavigation() {
                     </span>
                     {item.label}
                   </Link>
-                );
+                )
               })}
             </div>
 
@@ -208,5 +212,5 @@ export function DashboardMobileNavigation() {
         </div>
       )}
     </>
-  );
+  )
 }

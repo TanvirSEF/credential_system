@@ -1,30 +1,30 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
 function configuredOrigin(...names: string[]): string | null {
   for (const name of names) {
-    const value = process.env[name];
-    if (!value) continue;
+    const value = process.env[name]
+    if (!value) continue
     try {
-      return new URL(value).origin;
+      return new URL(value).origin
     } catch {
-      throw new Error(`${name} must be an absolute URL.`);
+      throw new Error(`${name} must be an absolute URL.`)
     }
   }
-  return null;
+  return null
 }
 
 const storageEndpointOrigin = configuredOrigin(
   "STORAGE_S3_ENDPOINT",
   "R2_S3_ENDPOINT"
-);
+)
 const storagePublicOrigin = configuredOrigin(
   "STORAGE_PUBLIC_URL",
   "R2_PUBLIC_URL"
-);
+)
 const storageConnectSources = [storageEndpointOrigin, storagePublicOrigin]
   .filter((value): value is string => Boolean(value))
-  .join(" ");
-const storageImageSources = storagePublicOrigin || "";
+  .join(" ")
+const storageImageSources = storagePublicOrigin || ""
 
 const securityHeaders = [
   {
@@ -66,7 +66,7 @@ const securityHeaders = [
       "frame-ancestors 'none'",
     ].join("; "),
   },
-];
+]
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -75,22 +75,23 @@ const nextConfig: NextConfig = {
       {
         source: "/sw.js",
         headers: [
-          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
           { key: "Service-Worker-Allowed", value: "/" },
         ],
       },
       {
         source: "/manifest.webmanifest",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=3600" },
-        ],
+        headers: [{ key: "Cache-Control", value: "public, max-age=3600" }],
       },
       {
         source: "/:path*",
         headers: securityHeaders,
       },
-    ];
+    ]
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

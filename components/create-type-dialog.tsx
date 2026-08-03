@@ -1,9 +1,9 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { encryptPayload } from "@/lib/crypto";
-import { createCredentialTypeAction } from "@/lib/actions/credential-types";
-import { useVaultSessionStore } from "@/stores/vault-session-store";
+import { useState } from "react"
+import { encryptPayload } from "@/lib/crypto"
+import { createCredentialTypeAction } from "@/lib/actions/credential-types"
+import { useVaultSessionStore } from "@/stores/vault-session-store"
 import {
   Dialog,
   DialogContent,
@@ -12,37 +12,41 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Trash2 } from "lucide-react";
-import { DecryptedCredentialType, FieldType, TemplateField } from "@/lib/types/credential-template";
+} from "@/components/ui/select"
+import { Trash2 } from "lucide-react"
+import {
+  DecryptedCredentialType,
+  FieldType,
+  TemplateField,
+} from "@/lib/types/credential-template"
 
 export function CreateTypeDialog({
   existingTypes,
   onTypeCreated,
 }: {
-  existingTypes: DecryptedCredentialType[];
-  onTypeCreated: () => void;
+  existingTypes: DecryptedCredentialType[]
+  onTypeCreated: () => void
 }) {
-  const { vaultKey, vaultId } = useVaultSessionStore();
+  const { vaultKey, vaultId } = useVaultSessionStore()
 
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [parentId, setParentId] = useState<string>("none");
-  const [fields, setFields] = useState<TemplateField[]>([]);
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [parentId, setParentId] = useState<string>("none")
+  const [fields, setFields] = useState<TemplateField[]>([])
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function addField() {
     const newField: TemplateField = {
@@ -53,29 +57,29 @@ export function CreateTypeDialog({
       required: false,
       copyable: true,
       sortOrder: fields.length,
-    };
-    setFields([...fields, newField]);
+    }
+    setFields([...fields, newField])
   }
 
   function removeField(id: string) {
-    setFields(fields.filter((f) => f.id !== id));
+    setFields(fields.filter((f) => f.id !== id))
   }
 
   function updateField(id: string, updates: Partial<TemplateField>) {
-    setFields(fields.map((f) => (f.id === id ? { ...f, ...updates } : f)));
+    setFields(fields.map((f) => (f.id === id ? { ...f, ...updates } : f)))
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!vaultKey || !vaultId) return;
+    e.preventDefault()
+    if (!vaultKey || !vaultId) return
 
     if (!name.trim()) {
-      setError("Category name is required.");
-      return;
+      setError("Category name is required.")
+      return
     }
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
       const payload = {
@@ -83,9 +87,9 @@ export function CreateTypeDialog({
         icon: "folder",
         description: description.trim() || undefined,
         fields,
-      };
+      }
 
-      const encrypted = await encryptPayload(payload, vaultKey);
+      const encrypted = await encryptPayload(payload, vaultKey)
 
       const res = await createCredentialTypeAction({
         vaultId,
@@ -93,33 +97,36 @@ export function CreateTypeDialog({
         payloadCiphertext: encrypted.ciphertext,
         iv: encrypted.iv,
         sortOrder: existingTypes.length,
-      });
+      })
 
       if (res.error) {
-        throw new Error(res.error);
+        throw new Error(res.error)
       }
 
-      setName("");
-      setDescription("");
-      setParentId("none");
-      setFields([]);
-      setOpen(false);
-      onTypeCreated();
+      setName("")
+      setDescription("")
+      setParentId("none")
+      setFields([])
+      setOpen(false)
+      onTypeCreated()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create category.");
+      setError(
+        err instanceof Error ? err.message : "Failed to create category."
+      )
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button>+ New Category Type</Button>} />
-      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Custom Category</DialogTitle>
           <DialogDescription>
-            Define a custom hierarchical category and dynamic field template for your credentials.
+            Define a custom hierarchical category and dynamic field template for
+            your credentials.
           </DialogDescription>
         </DialogHeader>
 
@@ -143,7 +150,10 @@ export function CreateTypeDialog({
 
           <div className="space-y-2">
             <Label htmlFor="parentCategory">Parent Category (Optional)</Label>
-            <Select value={parentId} onValueChange={(val) => setParentId(val || "none")}>
+            <Select
+              value={parentId}
+              onValueChange={(val) => setParentId(val || "none")}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select Parent Category" />
               </SelectTrigger>
@@ -171,38 +181,58 @@ export function CreateTypeDialog({
           {/* Dynamic Fields Section */}
           <div className="space-y-3 border-t pt-4">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Custom Template Fields</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addField}>
+              <Label className="text-sm font-semibold">
+                Custom Template Fields
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addField}
+              >
                 + Add Field
               </Button>
             </div>
 
             {fields.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4 border rounded-md border-dashed">
+              <p className="rounded-md border border-dashed py-4 text-center text-xs text-muted-foreground">
                 No custom fields added yet.
               </p>
             ) : (
               <div className="space-y-3">
                 {fields.map((field) => (
-                  <div key={field.id} className="rounded-lg border p-3 bg-muted/30 space-y-3">
+                  <div
+                    key={field.id}
+                    className="space-y-3 rounded-lg border bg-muted/30 p-3"
+                  >
                     <div className="flex items-center gap-2">
                       <Input
                         placeholder="Field Label (e.g. Server IP)"
                         value={field.label}
-                        onChange={(e) => updateField(field.id, { label: e.target.value })}
+                        onChange={(e) =>
+                          updateField(field.id, { label: e.target.value })
+                        }
                         className="flex-1"
                       />
                       <Select
                         value={field.type}
-                        onValueChange={(val) => updateField(field.id, { type: (val || "text") as FieldType })}
+                        onValueChange={(val) =>
+                          updateField(field.id, {
+                            type: (val || "text") as FieldType,
+                          })
+                        }
                       >
                         <SelectTrigger className="w-[140px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="text">Text</SelectItem>
-                          <SelectItem value="password">Password/Secret</SelectItem>
-                          <SelectItem value="multiline">Multiline Text</SelectItem>
+                          <SelectItem value="password">
+                            Password/Secret
+                          </SelectItem>
+                          <SelectItem value="multiline">
+                            Multiline Text
+                          </SelectItem>
                           <SelectItem value="email">Email</SelectItem>
                           <SelectItem value="url">URL</SelectItem>
                           <SelectItem value="date">Date</SelectItem>
@@ -214,26 +244,32 @@ export function CreateTypeDialog({
                         variant="ghost"
                         size="sm"
                         onClick={() => removeField(field.id)}
-                        className="text-destructive p-2"
+                        className="p-2 text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
 
                     <div className="flex items-center gap-4 text-xs">
-                      <label className="flex items-center gap-1 cursor-pointer">
+                      <label className="flex cursor-pointer items-center gap-1">
                         <input
                           type="checkbox"
                           checked={field.secret}
-                          onChange={(e) => updateField(field.id, { secret: e.target.checked })}
+                          onChange={(e) =>
+                            updateField(field.id, { secret: e.target.checked })
+                          }
                         />
                         Mask as secret
                       </label>
-                      <label className="flex items-center gap-1 cursor-pointer">
+                      <label className="flex cursor-pointer items-center gap-1">
                         <input
                           type="checkbox"
                           checked={field.required}
-                          onChange={(e) => updateField(field.id, { required: e.target.checked })}
+                          onChange={(e) =>
+                            updateField(field.id, {
+                              required: e.target.checked,
+                            })
+                          }
                         />
                         Required field
                       </label>
@@ -245,7 +281,11 @@ export function CreateTypeDialog({
           </div>
 
           <DialogFooter className="pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
@@ -255,5 +295,5 @@ export function CreateTypeDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
