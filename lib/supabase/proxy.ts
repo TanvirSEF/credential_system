@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { getSupabaseServerEnv } from "@/lib/supabase/env"
 
-const protectedPrefixes = ["/dashboard", "/setup", "/unlock"]
+const protectedPrefixes = ["/dashboard", "/setup", "/unlock", "/recover"]
 const authPaths = ["/login", "/register"]
 
 function isProtectedPath(pathname: string) {

@@ -1,17 +1,34 @@
 import { unwrapVaultKey, wrapVaultKey } from "./aes-gcm"
-import { createKdfParams, deriveKeyFromPassword, generateSalt } from "./kdf"
+import {
+  createKdfParams,
+  DEFAULT_PBKDF2_ITERATIONS,
+  deriveKeyFromPassword,
+  generateSalt,
+} from "./kdf"
 import { KeyEnvelope } from "./types"
 import { base64UrlToBytes, bytesToBase64Url } from "./utils"
 
 export function generateRecoveryKey(): string {
-  const bytes = new Uint8Array(20)
+  const bytes = new Uint8Array(32)
   crypto.getRandomValues(bytes)
-  const hex = Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase()
 
-  const groups = hex.match(/.{1,5}/g) || []
+  // Crockford-style Base32 avoids visually ambiguous I/L/O/U characters while
+  // preserving the full 256 bits of cryptographically random recovery entropy.
+  const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+  let bits = 0
+  let value = 0
+  let encoded = ""
+  for (const byte of bytes) {
+    value = (value << 8) | byte
+    bits += 8
+    while (bits >= 5) {
+      encoded += alphabet[(value >>> (bits - 5)) & 31]
+      bits -= 5
+    }
+  }
+  if (bits > 0) encoded += alphabet[(value << (5 - bits)) & 31]
+
+  const groups = encoded.match(/.{1,4}/g) || []
   return `SPV-${groups.join("-")}`
 }
 
@@ -29,10 +46,14 @@ export async function createRecoveryEnvelope(
   const normalizedKey = normalizeRecoveryKey(rawRecoveryKey)
   const salt = generateSalt(16)
 
-  const recoveryKek = await deriveKeyFromPassword(normalizedKey, salt, 100000)
+  const recoveryKek = await deriveKeyFromPassword(
+    normalizedKey,
+    salt,
+    DEFAULT_PBKDF2_ITERATIONS
+  )
   const { wrappedKey, iv } = await wrapVaultKey(vaultKey, recoveryKek)
 
-  const kdfParams = createKdfParams(salt, 100000)
+  const kdfParams = createKdfParams(salt, DEFAULT_PBKDF2_ITERATIONS)
 
   return {
     wrappedKey,

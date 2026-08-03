@@ -13,6 +13,11 @@ import {
   getUserVaultStatus,
 } from "@/lib/actions/vault"
 import { DEFAULT_CREDENTIAL_CATEGORIES } from "@/lib/credential-templates"
+import {
+  createRecoveryChallenge,
+  type RecoveryChallenge,
+  verifyRecoveryChallenge,
+} from "@/lib/recovery/recovery-kit"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,7 +49,11 @@ export default function SetupWizardPage() {
   // Recovery key state
   const [recoveryKey, setRecoveryKey] = useState("")
   const [copied, setCopied] = useState(false)
-  const [challengeInput, setChallengeInput] = useState("")
+  const [challenge, setChallenge] = useState<RecoveryChallenge | null>(null)
+  const [challengeAnswers, setChallengeAnswers] = useState<
+    Record<number, string>
+  >({})
+  const [storedSafely, setStoredSafely] = useState(false)
   const [challengeError, setChallengeError] = useState<string | null>(null)
 
   // Creation state
@@ -82,9 +91,9 @@ export default function SetupWizardPage() {
       return
     }
 
-    if (!recoveryKey) {
-      setRecoveryKey(generateRecoveryKey())
-    }
+    const nextRecoveryKey = recoveryKey || generateRecoveryKey()
+    setRecoveryKey(nextRecoveryKey)
+    if (!challenge) setChallenge(createRecoveryChallenge(nextRecoveryKey))
     setStep(3)
   }
 
@@ -113,11 +122,14 @@ export default function SetupWizardPage() {
     e.preventDefault()
     setChallengeError(null)
 
-    const prefix = recoveryKey.slice(0, 9)
-    if (challengeInput.trim().toUpperCase() !== prefix) {
+    if (!challenge || !verifyRecoveryChallenge(challenge, challengeAnswers)) {
       setChallengeError(
-        `Verification mismatch. Please type the first 2 groups (e.g. ${prefix}).`
+        "Verification mismatch. Check each requested recovery-key group."
       )
+      return
+    }
+    if (!storedSafely) {
+      setChallengeError("Confirm that you stored the recovery kit safely.")
       return
     }
 
@@ -346,20 +358,43 @@ export default function SetupWizardPage() {
                 </Button>
               </div>
 
-              <div className="space-y-2 border-t pt-4">
-                <Label htmlFor="challenge">
-                  Backup Verification: Type the first 2 groups of your key (
-                  {recoveryKey.slice(0, 9)})
-                </Label>
-                <Input
-                  id="challenge"
-                  type="text"
-                  required
-                  value={challengeInput}
-                  onChange={(e) => setChallengeInput(e.target.value)}
-                  placeholder="SPV-XXXXX"
-                  className="font-mono"
-                />
+              <div className="space-y-3 border-t pt-4">
+                <p className="text-xs text-muted-foreground">
+                  Backup verification: enter these groups from the saved key.
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {challenge?.positions.map((position) => (
+                    <div key={position} className="space-y-1.5">
+                      <Label htmlFor={`setup-recovery-group-${position}`}>
+                        Group {position + 1}
+                      </Label>
+                      <Input
+                        id={`setup-recovery-group-${position}`}
+                        type="text"
+                        required
+                        maxLength={4}
+                        autoComplete="off"
+                        value={challengeAnswers[position] || ""}
+                        onChange={(event) =>
+                          setChallengeAnswers((current) => ({
+                            ...current,
+                            [position]: event.target.value.toUpperCase(),
+                          }))
+                        }
+                        className="font-mono uppercase"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4"
+                    checked={storedSafely}
+                    onChange={(event) => setStoredSafely(event.target.checked)}
+                  />
+                  I stored this recovery key separately from my master password.
+                </label>
                 {challengeError && (
                   <p className="text-xs text-destructive">{challengeError}</p>
                 )}

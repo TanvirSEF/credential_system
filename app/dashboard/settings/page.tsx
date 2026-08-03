@@ -22,6 +22,7 @@ import {
 import { ArrowLeft } from "lucide-react"
 import { AutoLockSettingsCard } from "@/components/settings/auto-lock-settings-card"
 import { BackupSettingsCard } from "@/components/settings/backup-settings-card"
+import { RecoveryKeySettingsCard } from "@/components/settings/recovery-key-settings-card"
 
 interface ProfileState {
   email: string
@@ -135,6 +136,8 @@ function SettingsContent() {
       </Card>
 
       <AutoLockSettingsCard />
+
+      <RecoveryKeySettingsCard />
 
       <BackupSettingsCard />
 

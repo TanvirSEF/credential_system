@@ -5,6 +5,7 @@ import {
   stringToBytes,
 } from "./utils"
 import { EncryptedPayload } from "./types"
+import { zeroizeBuffer } from "./zeroization"
 
 export async function generateVaultKey(): Promise<CryptoKey> {
   return await crypto.subtle.generateKey(
@@ -86,15 +87,19 @@ export async function wrapVaultKey(
   const iv = generateIv(12)
   const rawKeyBuffer = await crypto.subtle.exportKey("raw", vaultKey)
 
-  const encryptedBuffer = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv as BufferSource },
-    wrappingKey,
-    rawKeyBuffer
-  )
+  try {
+    const encryptedBuffer = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: iv as BufferSource },
+      wrappingKey,
+      rawKeyBuffer
+    )
 
-  return {
-    wrappedKey: bytesToBase64Url(new Uint8Array(encryptedBuffer)),
-    iv: bytesToBase64Url(iv),
+    return {
+      wrappedKey: bytesToBase64Url(new Uint8Array(encryptedBuffer)),
+      iv: bytesToBase64Url(iv),
+    }
+  } finally {
+    zeroizeBuffer(rawKeyBuffer)
   }
 }
 
@@ -112,11 +117,18 @@ export async function unwrapVaultKey(
     wrappedBytes as BufferSource
   )
 
-  return await crypto.subtle.importKey(
-    "raw",
-    decryptedRawBuffer,
-    "AES-GCM",
-    false,
-    ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
-  )
+  try {
+    // The vault key must remain extractable in-memory so it can be re-wrapped
+    // when the user rotates a master password or recovery key. It is never
+    // persisted as plaintext and is cleared when the vault locks.
+    return await crypto.subtle.importKey(
+      "raw",
+      decryptedRawBuffer,
+      "AES-GCM",
+      true,
+      ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
+    )
+  } finally {
+    zeroizeBuffer(decryptedRawBuffer)
+  }
 }

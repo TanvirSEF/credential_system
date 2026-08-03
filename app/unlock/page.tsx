@@ -8,17 +8,13 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  KeyRound,
   LoaderCircle,
   LockKeyhole,
   ShieldCheck,
   TriangleAlert,
 } from "lucide-react"
 import { getUserVaultStatus } from "@/lib/actions/vault"
-import {
-  unlockVaultWithMasterPassword,
-  unlockVaultWithRecoveryKey,
-} from "@/lib/crypto"
+import { unlockVaultWithMasterPassword } from "@/lib/crypto"
 import type { KeyEnvelope } from "@/lib/crypto/types"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
 import { BrandLogo } from "@/components/brand-logo"
@@ -40,12 +36,7 @@ export default function UnlockVaultPage() {
   const [statusUnavailable, setStatusUnavailable] = useState(false)
   const [vaultId, setVaultId] = useState<string | null>(null)
   const [masterEnvelope, setMasterEnvelope] = useState<KeyEnvelope | null>(null)
-  const [recoveryEnvelope, setRecoveryEnvelope] = useState<KeyEnvelope | null>(
-    null
-  )
   const [masterPassword, setMasterPassword] = useState("")
-  const [recoveryKey, setRecoveryKey] = useState("")
-  const [useRecovery, setUseRecovery] = useState(false)
   const [showSecret, setShowSecret] = useState(false)
   const [capsLockOn, setCapsLockOn] = useState(false)
   const [unlocking, setUnlocking] = useState(false)
@@ -67,7 +58,6 @@ export default function UnlockVaultPage() {
       } else {
         setVaultId(status.vaultId || null)
         setMasterEnvelope(status.masterEnvelope || null)
-        setRecoveryEnvelope(status.recoveryEnvelope || null)
         setChecking(false)
       }
     }
@@ -81,44 +71,24 @@ export default function UnlockVaultPage() {
 
     try {
       if (!vaultId) throw new Error("Vault not found.")
-      const inputValue = useRecovery
-        ? recoveryKey.trim()
-        : masterPassword.trim()
-      const isRecoveryInput =
-        useRecovery || inputValue.toUpperCase().startsWith("SPV-")
-      let unlockedVaultKey: CryptoKey
-
-      if (isRecoveryInput) {
-        if (!recoveryEnvelope) throw new Error("Recovery envelope missing.")
-        unlockedVaultKey = await unlockVaultWithRecoveryKey(
-          inputValue,
-          recoveryEnvelope
-        )
-      } else {
-        if (!masterEnvelope) throw new Error("Master envelope missing.")
-        unlockedVaultKey = await unlockVaultWithMasterPassword(
-          masterPassword,
-          masterEnvelope
-        )
-      }
+      if (!masterEnvelope) throw new Error("Master envelope missing.")
+      const unlockedVaultKey = await unlockVaultWithMasterPassword(
+        masterPassword,
+        masterEnvelope
+      )
 
       setUnlockedSession(unlockedVaultKey, vaultId)
       router.replace("/dashboard")
     } catch {
       setError(
-        useRecovery || masterPassword.toUpperCase().startsWith("SPV-")
-          ? "That recovery key is invalid. Check every group and try again."
-          : "That master password did not unlock this vault. Check it and try again."
+        "That master password did not unlock this vault. Check it and try again."
       )
       setUnlocking(false)
     }
   }
 
   function switchUnlockMethod() {
-    setUseRecovery((current) => !current)
-    setShowSecret(false)
-    setCapsLockOn(false)
-    setError(null)
+    router.push("/recover")
   }
 
   if (checking) {
@@ -157,8 +127,6 @@ export default function UnlockVaultPage() {
     )
   }
 
-  const currentValue = useRecovery ? recoveryKey : masterPassword
-
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 font-sans sm:px-6">
       <BackgroundDecoration />
@@ -172,11 +140,7 @@ export default function UnlockVaultPage() {
           <div className="h-1 bg-gradient-to-r from-blue-500 via-primary to-violet-500" />
           <CardHeader className="items-center space-y-3 px-5 pt-7 pb-4 text-center sm:px-8">
             <div className="relative flex size-14 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary shadow-inner">
-              {useRecovery ? (
-                <KeyRound className="size-6" />
-              ) : (
-                <LockKeyhole className="size-6" />
-              )}
+              <LockKeyhole className="size-6" />
               <span className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full border-2 border-card bg-emerald-500 text-white">
                 <ShieldCheck className="size-3" />
               </span>
@@ -187,12 +151,10 @@ export default function UnlockVaultPage() {
                 Zero-knowledge vault
               </div>
               <CardTitle className="font-heading text-2xl font-extrabold tracking-tight sm:text-[1.7rem]">
-                {useRecovery ? "Recover vault access" : "Welcome back"}
+                Welcome back
               </CardTitle>
               <CardDescription className="mx-auto max-w-sm text-sm leading-relaxed">
-                {useRecovery
-                  ? "Enter the recovery key you saved when this vault was created."
-                  : "Enter the vault master password you created during setup."}
+                Enter the vault master password you created during setup.
               </CardDescription>
             </div>
           </CardHeader>
@@ -208,23 +170,15 @@ export default function UnlockVaultPage() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="vault-secret">
-                    {useRecovery ? "Recovery key" : "Vault master password"}
-                  </Label>
-                  {!useRecovery && (
-                    <span className="text-[10px] text-muted-foreground">
-                      Not your sign-in password
-                    </span>
-                  )}
+                  <Label htmlFor="vault-secret">Vault master password</Label>
+                  <span className="text-[10px] text-muted-foreground">
+                    Not your sign-in password
+                  </span>
                 </div>
 
                 <div className="relative">
                   <span className="pointer-events-none absolute top-1/2 left-3 flex -translate-y-1/2 text-muted-foreground">
-                    {useRecovery ? (
-                      <KeyRound className="size-4" />
-                    ) : (
-                      <LockKeyhole className="size-4" />
-                    )}
+                    <LockKeyhole className="size-4" />
                   </span>
                   <Input
                     id="vault-secret"
@@ -234,25 +188,17 @@ export default function UnlockVaultPage() {
                     autoComplete="off"
                     autoCapitalize="none"
                     spellCheck={false}
-                    placeholder={
-                      useRecovery
-                        ? "SPV-XXXX-XXXX-XXXX-..."
-                        : "Enter your vault master password"
-                    }
-                    value={currentValue}
+                    placeholder="Enter your vault master password"
+                    value={masterPassword}
                     disabled={unlocking}
-                    onChange={(event) =>
-                      useRecovery
-                        ? setRecoveryKey(event.target.value.toUpperCase())
-                        : setMasterPassword(event.target.value)
-                    }
+                    onChange={(event) => setMasterPassword(event.target.value)}
                     onKeyUp={(event) =>
                       setCapsLockOn(event.getModifierState("CapsLock"))
                     }
                     onKeyDown={(event) =>
                       setCapsLockOn(event.getModifierState("CapsLock"))
                     }
-                    className={`h-12 pr-11 pl-10 text-sm ${useRecovery ? "font-mono tracking-wider" : ""}`}
+                    className="h-12 pr-11 pl-10 text-sm"
                   />
                   <button
                     type="button"
@@ -268,41 +214,25 @@ export default function UnlockVaultPage() {
                   </button>
                 </div>
 
-                {capsLockOn && !useRecovery && (
+                {capsLockOn && (
                   <p className="flex items-center gap-1.5 text-xs text-amber-500">
                     <TriangleAlert className="size-3.5" /> Caps Lock is on
                   </p>
                 )}
               </div>
 
-              {useRecovery && (
-                <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs leading-relaxed text-muted-foreground">
-                  Recovery keys start with{" "}
-                  <span className="font-mono font-semibold text-foreground">
-                    SPV-
-                  </span>
-                  . Spaces and letter case are normalized automatically.
-                </div>
-              )}
-
               <Button
                 type="submit"
                 size="lg"
-                disabled={unlocking || !currentValue.trim()}
+                disabled={unlocking || !masterPassword.trim()}
                 className="w-full shadow-lg shadow-primary/20"
               >
                 {unlocking ? (
                   <LoaderCircle className="animate-spin" />
-                ) : useRecovery ? (
-                  <KeyRound />
                 ) : (
                   <LockKeyhole />
                 )}
-                {unlocking
-                  ? "Unlocking encrypted vault..."
-                  : useRecovery
-                    ? "Recover and unlock"
-                    : "Unlock vault"}
+                {unlocking ? "Unlocking encrypted vault..." : "Unlock vault"}
               </Button>
 
               <div className="flex items-center gap-3 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
@@ -322,12 +252,10 @@ export default function UnlockVaultPage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs font-semibold text-foreground">
-                    {useRecovery ? "Use master password" : "Use recovery key"}
+                    Use recovery key
                   </span>
                   <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                    {useRecovery
-                      ? "Return to the normal unlock method"
-                      : "Use the backup key saved during setup"}
+                    Reset the master password with your saved recovery kit
                   </span>
                 </span>
               </button>

@@ -7,9 +7,30 @@ import { withRls } from "@/db/rls"
 import { KeyEnvelope, KdfParams } from "@/lib/crypto/types"
 import {
   MAX_DEFAULT_CREDENTIAL_TYPES,
+  isUuid,
   validateEncryptedPayload,
   validateKeyEnvelope,
 } from "./validation"
+
+function envelopeUpdateValues(envelope: KeyEnvelope) {
+  return {
+    wrappedKey: envelope.wrappedKey,
+    iv: envelope.iv,
+    salt: envelope.salt,
+    kdfName: envelope.kdfName,
+    kdfParams: envelope.kdfParams,
+    verificationCiphertext: envelope.verificationCiphertext || null,
+    verificationIv: envelope.verificationIv || null,
+    cryptoVersion: envelope.cryptoVersion,
+    updatedAt: new Date(),
+  }
+}
+
+function parseExpectedTimestamp(value: unknown) {
+  if (typeof value !== "string") return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
 
 export async function getUserVaultStatus() {
   const supabase = await createClient()
@@ -99,6 +120,155 @@ export async function getUserVaultStatus() {
     vaultId: userVault.id,
     masterEnvelope,
     recoveryEnvelope,
+    masterEnvelopeUpdatedAt: masterEnvelopeRecord.updatedAt.toISOString(),
+    recoveryEnvelopeUpdatedAt: recoveryEnvelopeRecord?.updatedAt.toISOString(),
+  }
+}
+
+export async function rotateRecoveryEnvelopeAction(payload: {
+  vaultId: string
+  expectedUpdatedAt: string
+  recoveryEnvelope: KeyEnvelope
+}) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: "User not authenticated." }
+  if (!isUuid(payload.vaultId)) return { error: "Vault ID is invalid." }
+  const expectedUpdatedAt = parseExpectedTimestamp(payload.expectedUpdatedAt)
+  if (!expectedUpdatedAt) {
+    return { error: "Recovery state is stale. Refresh and try again." }
+  }
+  const envelopeError = validateKeyEnvelope(
+    payload.recoveryEnvelope,
+    "Recovery envelope"
+  )
+  if (envelopeError) return { error: envelopeError }
+
+  try {
+    const result = await withRls(user.id, async (tx) => {
+      const updated = await tx
+        .update(vaultKeyEnvelopes)
+        .set(envelopeUpdateValues(payload.recoveryEnvelope))
+        .where(
+          and(
+            eq(vaultKeyEnvelopes.vaultId, payload.vaultId),
+            eq(vaultKeyEnvelopes.ownerId, user.id),
+            eq(vaultKeyEnvelopes.envelopeType, "recovery"),
+            eq(vaultKeyEnvelopes.updatedAt, expectedUpdatedAt)
+          )
+        )
+        .returning({ updatedAt: vaultKeyEnvelopes.updatedAt })
+
+      if (updated.length !== 1) throw new Error("RECOVERY_CONFLICT")
+      return updated[0]
+    })
+
+    return { success: true, updatedAt: result.updatedAt.toISOString() }
+  } catch (error) {
+    if (error instanceof Error && error.message === "RECOVERY_CONFLICT") {
+      return {
+        error:
+          "Recovery settings changed in another session. Reopen this dialog and try again.",
+      }
+    }
+    console.error("Recovery envelope rotation failed:", error)
+    return {
+      error: "Could not replace the recovery key. The old key is still active.",
+    }
+  }
+}
+
+export async function recoverVaultAccessAction(payload: {
+  vaultId: string
+  expectedMasterUpdatedAt: string
+  expectedRecoveryUpdatedAt: string
+  masterEnvelope: KeyEnvelope
+  recoveryEnvelope: KeyEnvelope
+}) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: "User not authenticated." }
+  if (!isUuid(payload.vaultId)) return { error: "Vault ID is invalid." }
+  const expectedMasterUpdatedAt = parseExpectedTimestamp(
+    payload.expectedMasterUpdatedAt
+  )
+  const expectedRecoveryUpdatedAt = parseExpectedTimestamp(
+    payload.expectedRecoveryUpdatedAt
+  )
+  if (!expectedMasterUpdatedAt || !expectedRecoveryUpdatedAt) {
+    return { error: "Recovery state is stale. Restart recovery and try again." }
+  }
+  const masterError = validateKeyEnvelope(
+    payload.masterEnvelope,
+    "Master envelope"
+  )
+  if (masterError) return { error: masterError }
+  const recoveryError = validateKeyEnvelope(
+    payload.recoveryEnvelope,
+    "Recovery envelope"
+  )
+  if (recoveryError) return { error: recoveryError }
+
+  try {
+    await withRls(user.id, async (tx) => {
+      const recoveryUpdated = await tx
+        .update(vaultKeyEnvelopes)
+        .set(envelopeUpdateValues(payload.recoveryEnvelope))
+        .where(
+          and(
+            eq(vaultKeyEnvelopes.vaultId, payload.vaultId),
+            eq(vaultKeyEnvelopes.ownerId, user.id),
+            eq(vaultKeyEnvelopes.envelopeType, "recovery"),
+            eq(vaultKeyEnvelopes.updatedAt, expectedRecoveryUpdatedAt)
+          )
+        )
+        .returning({ id: vaultKeyEnvelopes.id })
+
+      if (recoveryUpdated.length !== 1) throw new Error("RECOVERY_CONFLICT")
+
+      const masterUpdated = await tx
+        .update(vaultKeyEnvelopes)
+        .set(envelopeUpdateValues(payload.masterEnvelope))
+        .where(
+          and(
+            eq(vaultKeyEnvelopes.vaultId, payload.vaultId),
+            eq(vaultKeyEnvelopes.ownerId, user.id),
+            eq(vaultKeyEnvelopes.envelopeType, "master"),
+            eq(vaultKeyEnvelopes.updatedAt, expectedMasterUpdatedAt)
+          )
+        )
+        .returning({ id: vaultKeyEnvelopes.id })
+
+      if (masterUpdated.length !== 1) throw new Error("MASTER_CONFLICT")
+    })
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message === "RECOVERY_CONFLICT" ||
+        error.message === "MASTER_CONFLICT")
+    ) {
+      return {
+        error:
+          "Vault security settings changed in another session. Restart recovery.",
+      }
+    }
+    console.error("Vault recovery envelope rotation failed:", error)
+    return { error: "Could not update vault recovery settings." }
+  }
+
+  const { error: signOutError } = await supabase.auth.signOut({
+    scope: "others",
+  })
+
+  return {
+    success: true,
+    otherSessionsInvalidated: !signOutError,
   }
 }
 

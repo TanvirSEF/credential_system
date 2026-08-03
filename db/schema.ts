@@ -6,6 +6,7 @@ import {
   timestamp,
   bigint,
   jsonb,
+  uniqueIndex,
 } from "drizzle-orm/pg-core"
 
 export const profiles = pgTable("profiles", {
@@ -36,28 +37,37 @@ export const vaults = pgTable("vaults", {
     .notNull(),
 })
 
-export const vaultKeyEnvelopes = pgTable("vault_key_envelopes", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  vaultId: uuid("vault_id")
-    .notNull()
-    .references(() => vaults.id, { onDelete: "cascade" }),
-  ownerId: uuid("owner_id").notNull(),
-  envelopeType: text("envelope_type").notNull(),
-  wrappedKey: text("wrapped_key").notNull(),
-  iv: text("iv").notNull(),
-  salt: text("salt").notNull(),
-  kdfName: text("kdf_name").notNull(),
-  kdfParams: jsonb("kdf_params").notNull(),
-  verificationCiphertext: text("verification_ciphertext"),
-  verificationIv: text("verification_iv"),
-  cryptoVersion: integer("crypto_version").default(1).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-})
+export const vaultKeyEnvelopes = pgTable(
+  "vault_key_envelopes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    vaultId: uuid("vault_id")
+      .notNull()
+      .references(() => vaults.id, { onDelete: "cascade" }),
+    ownerId: uuid("owner_id").notNull(),
+    envelopeType: text("envelope_type").notNull(),
+    wrappedKey: text("wrapped_key").notNull(),
+    iv: text("iv").notNull(),
+    salt: text("salt").notNull(),
+    kdfName: text("kdf_name").notNull(),
+    kdfParams: jsonb("kdf_params").notNull(),
+    verificationCiphertext: text("verification_ciphertext"),
+    verificationIv: text("verification_iv"),
+    cryptoVersion: integer("crypto_version").default(1).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("vault_key_envelopes_vault_type_unique").on(
+      table.vaultId,
+      table.envelopeType
+    ),
+  ]
+)
 
 export const credentialTypes = pgTable("credential_types", {
   id: uuid("id").defaultRandom().primaryKey(),
