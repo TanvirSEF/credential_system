@@ -1,4 +1,4 @@
-import { base64UrlToBytes, bytesToBase64Url, stringToBytes } from "./utils"
+import { bytesToBase64Url, stringToBytes } from "./utils"
 import { KdfParams } from "./types"
 
 export const DEFAULT_PBKDF2_ITERATIONS = 600000

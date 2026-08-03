@@ -44,12 +44,15 @@ export function CreateProjectDialog({
 
   useEffect(() => {
     if (!editProject) return
-    setName(editProject.payload.name || "")
-    setDescription(editProject.payload.description || "")
-    setWebsiteUrl(editProject.payload.websiteUrls?.[0] || "")
-    setTagsInput(editProject.payload.tags?.join(", ") || "")
-    setFavorite(editProject.payload.favorite || false)
-    setOpen(true)
+    const timeoutId = window.setTimeout(() => {
+      setName(editProject.payload.name || "")
+      setDescription(editProject.payload.description || "")
+      setWebsiteUrl(editProject.payload.websiteUrls?.[0] || "")
+      setTagsInput(editProject.payload.tags?.join(", ") || "")
+      setFavorite(editProject.payload.favorite || false)
+      setOpen(true)
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
   }, [editProject])
 
   function handleOpenChange(nextOpen: boolean) {

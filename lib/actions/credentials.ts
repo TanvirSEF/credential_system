@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server"
 import { credentials } from "@/db/schema"
 import { eq, and, isNull, isNotNull } from "drizzle-orm"
 import { withRls } from "@/db/rls"
-import { vaultOwnedBy } from "./_shared"
+import { credentialTypeOwnedByVault, vaultOwnedBy } from "./_shared"
+import { isUuid, validateEncryptedPayload, validateVersion } from "./validation"
 
 export async function fetchCredentialsAction(vaultId: string) {
   const supabase = await createClient()
@@ -72,10 +73,30 @@ export async function createCredentialAction(payload: {
   if (!user) {
     return { error: "Not authenticated." }
   }
+  if (!isUuid(payload.vaultId) || (payload.typeId && !isUuid(payload.typeId))) {
+    return { error: "Invalid vault or credential type identifier." }
+  }
+  const validationError = validateEncryptedPayload(
+    payload.payloadCiphertext,
+    payload.iv,
+    "Encrypted credential"
+  )
+  if (validationError) return { error: validationError }
 
   return withRls(user.id, async (tx) => {
     if (!(await vaultOwnedBy(tx, payload.vaultId, user.id))) {
       return { error: "Vault not found." }
+    }
+    if (
+      payload.typeId &&
+      !(await credentialTypeOwnedByVault(
+        tx,
+        payload.typeId,
+        payload.vaultId,
+        user.id
+      ))
+    ) {
+      return { error: "Credential type does not belong to this vault." }
     }
 
     const inserted = await tx
@@ -110,9 +131,39 @@ export async function updateCredentialAction(payload: {
   if (!user) {
     return { error: "Not authenticated." }
   }
+  if (!isUuid(payload.id) || (payload.typeId && !isUuid(payload.typeId))) {
+    return { error: "Invalid credential or credential type identifier." }
+  }
+  const validationError =
+    validateEncryptedPayload(
+      payload.payloadCiphertext,
+      payload.iv,
+      "Encrypted credential"
+    ) || validateVersion(payload.version)
+  if (validationError) return { error: validationError }
 
-  await withRls(user.id, (tx) =>
-    tx
+  return withRls(user.id, async (tx) => {
+    const current = await tx
+      .select({ vaultId: credentials.vaultId })
+      .from(credentials)
+      .where(
+        and(eq(credentials.id, payload.id), eq(credentials.ownerId, user.id))
+      )
+
+    if (!current[0]) return { error: "Credential not found." }
+    if (
+      payload.typeId &&
+      !(await credentialTypeOwnedByVault(
+        tx,
+        payload.typeId,
+        current[0].vaultId,
+        user.id
+      ))
+    ) {
+      return { error: "Credential type does not belong to this vault." }
+    }
+
+    const updated = await tx
       .update(credentials)
       .set({
         typeId: payload.typeId || null,
@@ -122,11 +173,22 @@ export async function updateCredentialAction(payload: {
         updatedAt: new Date(),
       })
       .where(
-        and(eq(credentials.id, payload.id), eq(credentials.ownerId, user.id))
+        and(
+          eq(credentials.id, payload.id),
+          eq(credentials.ownerId, user.id),
+          eq(credentials.version, payload.version)
+        )
       )
-  )
+      .returning({ version: credentials.version })
 
-  return { success: true }
+    return updated.length === 1
+      ? { success: true, version: updated[0].version }
+      : {
+          error:
+            "This credential was changed elsewhere. Refresh before saving again.",
+          conflict: true,
+        }
+  })
 }
 
 export async function softDeleteCredentialAction(id: string) {

@@ -81,7 +81,8 @@ export function ProjectDetailDialog({
   const clipboardTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (open && project) {
+    if (!open || !project) return
+    const timeoutId = window.setTimeout(() => {
       setDraft(structuredClone(project.payload))
       setActiveEnvId(project.payload.environments[0]?.id ?? "")
       setRenamingEnv(false)
@@ -92,7 +93,8 @@ export function ProjectDetailDialog({
       setCopiedId(null)
       setDirty(false)
       setError(null)
-    }
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
   }, [open, project])
 
   useEffect(() => {

@@ -65,7 +65,7 @@ export async function unlockVaultWithRecoveryKey(
     )
 
     return vaultKey
-  } catch (err) {
+  } catch {
     throw new Error("Invalid recovery key or corrupted recovery envelope.")
   }
 }

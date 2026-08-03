@@ -10,7 +10,12 @@ import {
   presignGetUrl,
   deleteObject,
 } from "@/lib/storage/object-storage"
-import { vaultOwnedBy } from "./_shared"
+import { credentialOwnedByVault, vaultOwnedBy } from "./_shared"
+import {
+  isUuid,
+  validateDocumentDetails,
+  validateDocumentSize,
+} from "./validation"
 
 export async function fetchDocumentsAction(vaultId: string) {
   const supabase = await createClient()
@@ -38,7 +43,10 @@ export async function fetchDocumentsAction(vaultId: string) {
   return { error: null, documents: rows }
 }
 
-export async function createDocumentUploadUrlAction(vaultId: string) {
+export async function createDocumentUploadUrlAction(
+  vaultId: string,
+  ciphertextSize: number
+) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -47,6 +55,9 @@ export async function createDocumentUploadUrlAction(vaultId: string) {
   if (!user) {
     return { error: "Not authenticated." }
   }
+  if (!isUuid(vaultId)) return { error: "Invalid vault identifier." }
+  const sizeError = validateDocumentSize(ciphertextSize)
+  if (sizeError) return { error: sizeError }
 
   const owned = await withRls(user.id, (tx) =>
     vaultOwnedBy(tx, vaultId, user.id)
@@ -59,7 +70,8 @@ export async function createDocumentUploadUrlAction(vaultId: string) {
   const uploadUrl = await presignPutUrl(
     storagePath,
     "application/octet-stream",
-    120
+    120,
+    ciphertextSize
   )
 
   return { error: null, storagePath, uploadUrl }
@@ -74,6 +86,7 @@ export async function getDocumentDownloadUrlAction(id: string) {
   if (!user) {
     return { error: "Not authenticated." }
   }
+  if (!isUuid(id)) return { error: "Invalid document identifier." }
 
   const rows = await withRls(user.id, (tx) =>
     tx
@@ -107,14 +120,39 @@ export async function createDocumentRecordAction(payload: {
   if (!user) {
     return { error: "Not authenticated." }
   }
+  if (
+    !isUuid(payload.vaultId) ||
+    (payload.credentialId && !isUuid(payload.credentialId))
+  ) {
+    return { error: "Invalid vault or credential identifier." }
+  }
+  const validationError = validateDocumentDetails(payload)
+  if (validationError) return { error: validationError }
 
   return withRls(user.id, async (tx) => {
     if (!(await vaultOwnedBy(tx, payload.vaultId, user.id))) {
       return { error: "Vault not found." }
     }
 
-    if (!payload.storagePath.startsWith(`documents/${user.id}/`)) {
+    const expectedPrefix = `documents/${user.id}/`
+    const objectId = payload.storagePath.slice(expectedPrefix.length, -4)
+    if (
+      !payload.storagePath.startsWith(expectedPrefix) ||
+      !payload.storagePath.endsWith(".enc") ||
+      !isUuid(objectId)
+    ) {
       return { error: "Invalid document storage path." }
+    }
+    if (
+      payload.credentialId &&
+      !(await credentialOwnedByVault(
+        tx,
+        payload.credentialId,
+        payload.vaultId,
+        user.id
+      ))
+    ) {
+      return { error: "Credential does not belong to this vault." }
     }
 
     const inserted = await tx

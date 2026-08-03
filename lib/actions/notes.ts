@@ -5,6 +5,7 @@ import { notes } from "@/db/schema"
 import { eq, and, isNull, isNotNull } from "drizzle-orm"
 import { withRls } from "@/db/rls"
 import { vaultOwnedBy } from "./_shared"
+import { isUuid, validateEncryptedPayload, validateVersion } from "./validation"
 
 export async function fetchNotesAction(vaultId: string) {
   const supabase = await createClient()
@@ -71,6 +72,13 @@ export async function createNoteAction(payload: {
   if (!user) {
     return { error: "Not authenticated." }
   }
+  if (!isUuid(payload.vaultId)) return { error: "Invalid vault identifier." }
+  const validationError = validateEncryptedPayload(
+    payload.payloadCiphertext,
+    payload.iv,
+    "Encrypted note"
+  )
+  if (validationError) return { error: validationError }
 
   return withRls(user.id, async (tx) => {
     if (!(await vaultOwnedBy(tx, payload.vaultId, user.id))) {
@@ -107,8 +115,16 @@ export async function updateNoteAction(payload: {
   if (!user) {
     return { error: "Not authenticated." }
   }
+  if (!isUuid(payload.id)) return { error: "Invalid note identifier." }
+  const validationError =
+    validateEncryptedPayload(
+      payload.payloadCiphertext,
+      payload.iv,
+      "Encrypted note"
+    ) || validateVersion(payload.version)
+  if (validationError) return { error: validationError }
 
-  await withRls(user.id, (tx) =>
+  const updated = await withRls(user.id, (tx) =>
     tx
       .update(notes)
       .set({
@@ -117,10 +133,22 @@ export async function updateNoteAction(payload: {
         version: payload.version + 1,
         updatedAt: new Date(),
       })
-      .where(and(eq(notes.id, payload.id), eq(notes.ownerId, user.id)))
+      .where(
+        and(
+          eq(notes.id, payload.id),
+          eq(notes.ownerId, user.id),
+          eq(notes.version, payload.version)
+        )
+      )
+      .returning({ version: notes.version })
   )
 
-  return { success: true }
+  return updated.length === 1
+    ? { success: true, version: updated[0].version }
+    : {
+        error: "This note was changed elsewhere. Refresh before saving again.",
+        conflict: true,
+      }
 }
 
 export async function softDeleteNoteAction(id: string) {

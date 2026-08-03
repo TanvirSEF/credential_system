@@ -18,8 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import Link from "next/link"
-import { ArrowLeft, Folder, Lock } from "lucide-react"
+import { Folder, Lock } from "lucide-react"
 import {
   DecryptedCredentialType,
   CredentialTypePayload,
@@ -69,7 +68,8 @@ function TypesDashboardContent() {
   }, [vaultId, vaultKey])
 
   useEffect(() => {
-    loadTypes()
+    const timeoutId = window.setTimeout(() => void loadTypes(), 0)
+    return () => window.clearTimeout(timeoutId)
   }, [loadTypes])
 
   async function handleArchive(id: string) {

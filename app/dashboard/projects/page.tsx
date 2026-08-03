@@ -171,7 +171,8 @@ function ProjectsContent() {
   }, [vaultId, vaultKey])
 
   useEffect(() => {
-    loadData()
+    const timeoutId = window.setTimeout(() => void loadData(), 0)
+    return () => window.clearTimeout(timeoutId)
   }, [loadData])
 
   useEffect(() => {

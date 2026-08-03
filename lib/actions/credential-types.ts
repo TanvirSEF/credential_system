@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server"
 import { credentialTypes } from "@/db/schema"
 import { eq, and, isNull } from "drizzle-orm"
 import { withRls } from "@/db/rls"
-import { vaultOwnedBy } from "./_shared"
+import { credentialTypeOwnedByVault, vaultOwnedBy } from "./_shared"
+import { isUuid, validateEncryptedPayload } from "./validation"
 
 export async function fetchCredentialTypesAction(vaultId: string) {
   const supabase = await createClient()
@@ -47,10 +48,36 @@ export async function createCredentialTypeAction(payload: {
   if (!user) {
     return { error: "Not authenticated." }
   }
+  if (
+    !isUuid(payload.vaultId) ||
+    (payload.parentId && !isUuid(payload.parentId))
+  ) {
+    return { error: "Invalid vault or parent category identifier." }
+  }
+  if (!Number.isSafeInteger(payload.sortOrder) || payload.sortOrder < 0) {
+    return { error: "Category sort order is invalid." }
+  }
+  const validationError = validateEncryptedPayload(
+    payload.payloadCiphertext,
+    payload.iv,
+    "Encrypted credential type"
+  )
+  if (validationError) return { error: validationError }
 
   return withRls(user.id, async (tx) => {
     if (!(await vaultOwnedBy(tx, payload.vaultId, user.id))) {
       return { error: "Vault not found." }
+    }
+    if (
+      payload.parentId &&
+      !(await credentialTypeOwnedByVault(
+        tx,
+        payload.parentId,
+        payload.vaultId,
+        user.id
+      ))
+    ) {
+      return { error: "Parent category does not belong to this vault." }
     }
 
     const inserted = await tx

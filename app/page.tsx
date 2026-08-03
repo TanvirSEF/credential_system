@@ -2,7 +2,6 @@ import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
 import { BrandLogo } from "@/components/brand-logo"
 import {
-  Shield,
   Lock,
   FileText,
   Folder,
@@ -12,7 +11,6 @@ import {
   RefreshCw,
   KeyRound,
   CheckCircle2,
-  Eye,
   EyeOff,
   ShieldCheck,
   Fingerprint,

@@ -52,7 +52,8 @@ export function NoteEditorDialog({
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    const timeoutId = window.setTimeout(() => {
       setTitle(note?.payload.title ?? "")
       setContent(note?.payload.content ?? "")
       setTagsInput(note?.payload.tags?.join(", ") ?? "")
@@ -60,7 +61,8 @@ export function NoteEditorDialog({
       setTab("write")
       setDirty(false)
       setError(null)
-    }
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
   }, [open, note])
 
   function handleClose(nextOpen: boolean) {

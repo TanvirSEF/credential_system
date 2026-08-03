@@ -4,6 +4,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { PwaManager } from "@/components/pwa-manager"
 import { cn } from "@/lib/utils"
+import { headers } from "next/headers"
 
 export const metadata: Metadata = {
   applicationName: "Secure Personal Vault",
@@ -54,11 +55,15 @@ const fontMono = JetBrains_Mono({
   variable: "--font-mono",
 })
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Nonce-based CSP requires request-time rendering so Next.js can attach the
+  // per-request nonce to generated scripts and styles.
+  await headers()
+
   return (
     <html
       lang="en"

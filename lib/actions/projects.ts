@@ -5,6 +5,7 @@ import { projects } from "@/db/schema"
 import { eq, and, isNull, isNotNull } from "drizzle-orm"
 import { withRls } from "@/db/rls"
 import { vaultOwnedBy } from "./_shared"
+import { isUuid, validateEncryptedPayload, validateVersion } from "./validation"
 
 export async function fetchProjectsAction(vaultId: string) {
   const supabase = await createClient()
@@ -71,6 +72,13 @@ export async function createProjectAction(payload: {
   if (!user) {
     return { error: "Not authenticated." }
   }
+  if (!isUuid(payload.vaultId)) return { error: "Invalid vault identifier." }
+  const validationError = validateEncryptedPayload(
+    payload.payloadCiphertext,
+    payload.iv,
+    "Encrypted project"
+  )
+  if (validationError) return { error: validationError }
 
   return withRls(user.id, async (tx) => {
     if (!(await vaultOwnedBy(tx, payload.vaultId, user.id))) {
@@ -107,8 +115,16 @@ export async function updateProjectAction(payload: {
   if (!user) {
     return { error: "Not authenticated." }
   }
+  if (!isUuid(payload.id)) return { error: "Invalid project identifier." }
+  const validationError =
+    validateEncryptedPayload(
+      payload.payloadCiphertext,
+      payload.iv,
+      "Encrypted project"
+    ) || validateVersion(payload.version)
+  if (validationError) return { error: validationError }
 
-  await withRls(user.id, (tx) =>
+  const updated = await withRls(user.id, (tx) =>
     tx
       .update(projects)
       .set({
@@ -117,10 +133,23 @@ export async function updateProjectAction(payload: {
         version: payload.version + 1,
         updatedAt: new Date(),
       })
-      .where(and(eq(projects.id, payload.id), eq(projects.ownerId, user.id)))
+      .where(
+        and(
+          eq(projects.id, payload.id),
+          eq(projects.ownerId, user.id),
+          eq(projects.version, payload.version)
+        )
+      )
+      .returning({ version: projects.version })
   )
 
-  return { success: true }
+  return updated.length === 1
+    ? { success: true, version: updated[0].version }
+    : {
+        error:
+          "This project was changed elsewhere. Refresh before saving again.",
+        conflict: true,
+      }
 }
 
 export async function softDeleteProjectAction(id: string) {

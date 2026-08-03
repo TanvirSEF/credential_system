@@ -19,8 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import Link from "next/link"
-import { ArrowLeft, FileText, Download, Trash2 } from "lucide-react"
+import { FileText, Download, Trash2 } from "lucide-react"
 import {
   DecryptedDocument,
   DecryptedDocumentMetadata,
@@ -75,7 +74,8 @@ function DocumentsContent() {
   }, [vaultId, vaultKey])
 
   useEffect(() => {
-    loadDocuments()
+    const timeoutId = window.setTimeout(() => void loadDocuments(), 0)
+    return () => window.clearTimeout(timeoutId)
   }, [loadDocuments])
 
   async function handleDownload(doc: DecryptedDocument) {

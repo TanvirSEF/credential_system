@@ -5,6 +5,11 @@ import { vaults, vaultKeyEnvelopes, credentialTypes } from "@/db/schema"
 import { eq, and, inArray } from "drizzle-orm"
 import { withRls } from "@/db/rls"
 import { KeyEnvelope, KdfParams } from "@/lib/crypto/types"
+import {
+  MAX_DEFAULT_CREDENTIAL_TYPES,
+  validateEncryptedPayload,
+  validateKeyEnvelope,
+} from "./validation"
 
 export async function getUserVaultStatus() {
   const supabase = await createClient()
@@ -115,6 +120,40 @@ export async function createVaultAndEnvelopesAction(payload: {
 
   if (!user) {
     return { error: "User not authenticated." }
+  }
+  const nameError = validateEncryptedPayload(
+    payload.nameCiphertext,
+    payload.nameIv,
+    "Encrypted vault name",
+    16 * 1024
+  )
+  if (nameError) return { error: nameError }
+  if (payload.defaultTypes.length > MAX_DEFAULT_CREDENTIAL_TYPES) {
+    return { error: "Too many default credential types." }
+  }
+  const masterError = validateKeyEnvelope(
+    payload.masterEnvelope,
+    "Master envelope"
+  )
+  if (masterError) return { error: masterError }
+  const recoveryError = validateKeyEnvelope(
+    payload.recoveryEnvelope,
+    "Recovery envelope"
+  )
+  if (recoveryError) return { error: recoveryError }
+  for (const defaultType of payload.defaultTypes) {
+    const defaultTypeError = validateEncryptedPayload(
+      defaultType.payloadCiphertext,
+      defaultType.iv,
+      "Encrypted default credential type"
+    )
+    if (defaultTypeError) return { error: defaultTypeError }
+    if (
+      !Number.isSafeInteger(defaultType.sortOrder) ||
+      defaultType.sortOrder < 0
+    ) {
+      return { error: "Default credential type sort order is invalid." }
+    }
   }
 
   const result = await withRls(user.id, async (tx) => {

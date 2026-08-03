@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { MAX_DOCUMENT_CIPHERTEXT_BYTES } from "@/lib/actions/validation"
 
 type UploadPhase = "idle" | "encrypting" | "uploading" | "saving"
 
@@ -91,6 +92,11 @@ export function UploadDocumentDialog({
       setError("This file is empty. Choose a file that contains data.")
       return
     }
+    if (nextFile.size + 16 > MAX_DOCUMENT_CIPHERTEXT_BYTES) {
+      setFile(null)
+      setError("Documents must be 50 MB or smaller before encryption.")
+      return
+    }
     setFile(nextFile)
     setError(null)
   }
@@ -119,7 +125,10 @@ export function UploadDocumentDialog({
       const encryptedData = await encryptFile(file, vaultKey, description)
 
       setPhase("uploading")
-      const urlResult = await createDocumentUploadUrlAction(vaultId)
+      const urlResult = await createDocumentUploadUrlAction(
+        vaultId,
+        encryptedData.ciphertextSize
+      )
       if (urlResult.error || !urlResult.uploadUrl || !urlResult.storagePath) {
         throw new Error(
           urlResult.error || "Could not prepare the private upload."

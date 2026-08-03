@@ -92,15 +92,18 @@ export function CreateCredentialDialog({
 
   useEffect(() => {
     if (!editCredential) return
-    setTitle(editCredential.payload.title || "")
-    setSubtitle(editCredential.payload.subtitle || "")
-    setSelectedTypeId(editCredential.typeId || "none")
-    setWebsiteUrl(editCredential.payload.websiteUrls?.[0] || "")
-    setNotes(editCredential.payload.notes || "")
-    setTagsInput(editCredential.payload.tags?.join(", ") || "")
-    setFavorite(editCredential.payload.favorite || false)
-    setFields(editCredential.payload.fields || [])
-    setOpen(true)
+    const timeoutId = window.setTimeout(() => {
+      setTitle(editCredential.payload.title || "")
+      setSubtitle(editCredential.payload.subtitle || "")
+      setSelectedTypeId(editCredential.typeId || "none")
+      setWebsiteUrl(editCredential.payload.websiteUrls?.[0] || "")
+      setNotes(editCredential.payload.notes || "")
+      setTagsInput(editCredential.payload.tags?.join(", ") || "")
+      setFavorite(editCredential.payload.favorite || false)
+      setFields(editCredential.payload.fields || [])
+      setOpen(true)
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
   }, [editCredential])
 
   function handleOpenChange(nextOpen: boolean) {

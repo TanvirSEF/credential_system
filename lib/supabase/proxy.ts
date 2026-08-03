@@ -11,8 +11,13 @@ function isProtectedPath(pathname: string) {
   )
 }
 
-export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request })
+export async function updateSession(
+  request: NextRequest,
+  requestHeaders = new Headers(request.headers)
+) {
+  const nextResponse = () =>
+    NextResponse.next({ request: { headers: requestHeaders } })
+  let response = nextResponse()
   let supabaseUrl: string
   let publishableKey: string
 
@@ -37,7 +42,7 @@ export async function updateSession(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value)
         )
-        response = NextResponse.next({ request })
+        response = nextResponse()
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options)
         )

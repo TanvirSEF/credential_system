@@ -188,7 +188,8 @@ function TrashDashboardContent() {
   }, [vaultId, vaultKey, trashType])
 
   useEffect(() => {
-    loadTrash()
+    const timeoutId = window.setTimeout(() => void loadTrash(), 0)
+    return () => window.clearTimeout(timeoutId)
   }, [loadTrash])
 
   async function handleRestore(id: string) {

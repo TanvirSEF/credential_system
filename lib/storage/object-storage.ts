@@ -91,7 +91,8 @@ export function publicUrlFor(key: string): string {
 export async function presignPutUrl(
   key: string,
   contentType: string,
-  expiresIn = 120
+  expiresIn = 120,
+  contentLength?: number
 ): Promise<string> {
   const { client, bucket } = getConfig()
   return getSignedUrl(
@@ -100,6 +101,7 @@ export async function presignPutUrl(
       Bucket: bucket,
       Key: key,
       ContentType: contentType,
+      ...(contentLength === undefined ? {} : { ContentLength: contentLength }),
     }),
     { expiresIn }
   )
