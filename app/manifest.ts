@@ -2,12 +2,16 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    id: "/?v=2",
+    // `id` is the WebAPK identity key on Android. It MUST stay stable across
+    // releases — changing it makes the device treat each version as a new app
+    // and can leave the native "Installing..." dialog stuck forever. Version
+    // cache-busting belongs on the manifest <link> href, not here.
+    id: "/",
     name: "Secure Personal Vault",
     short_name: "SP Vault",
     description:
       "A zero-knowledge encrypted vault for passwords, API keys, and private documents.",
-    start_url: "/?v=2",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     background_color: "#08132b",
