@@ -32,6 +32,7 @@ const REQUIRED_STORES = [
   "vault_meta",
   "projects_cache",
   "notes_cache",
+  "offline_sync_queue",
 ]
 
 function createStores(db: IDBDatabase) {
@@ -49,6 +50,9 @@ function createStores(db: IDBDatabase) {
   }
   if (!db.objectStoreNames.contains("notes_cache")) {
     db.createObjectStore("notes_cache", { keyPath: "id" })
+  }
+  if (!db.objectStoreNames.contains("offline_sync_queue")) {
+    db.createObjectStore("offline_sync_queue", { keyPath: "id" })
   }
 }
 
@@ -304,3 +308,60 @@ export async function clearVaultCache(): Promise<void> {
     console.warn("IndexedDB cache clear warning:", err)
   }
 }
+
+// -- Sync Queue --
+export interface SyncJob {
+  id: string
+  action: "CREATE_NOTE" | "UPDATE_NOTE" | "DELETE_NOTE" | "CREATE_CREDENTIAL" | "UPDATE_CREDENTIAL" | "DELETE_CREDENTIAL" | "CREATE_TYPE" | "ARCHIVE_TYPE"
+  payload: any
+  timestamp: number
+}
+
+export async function addSyncJob(job: SyncJob): Promise<void> {
+  try {
+    const db = await openDB()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(["offline_sync_queue"], "readwrite")
+      const store = tx.objectStore("offline_sync_queue")
+      const req = store.put(job)
+      req.onsuccess = () => resolve()
+      req.onerror = () => reject(req.error)
+    })
+  } catch (err) {
+    console.warn("Failed to add sync job:", err)
+  }
+}
+
+export async function getSyncJobs(): Promise<SyncJob[]> {
+  try {
+    const db = await openDB()
+    return new Promise((resolve) => {
+      const tx = db.transaction(["offline_sync_queue"], "readonly")
+      const store = tx.objectStore("offline_sync_queue")
+      const req = store.getAll()
+      req.onsuccess = () => {
+        const jobs = (req.result as SyncJob[]) || []
+        resolve(jobs.sort((a, b) => a.timestamp - b.timestamp))
+      }
+      req.onerror = () => resolve([])
+    })
+  } catch {
+    return []
+  }
+}
+
+export async function removeSyncJob(id: string): Promise<void> {
+  try {
+    const db = await openDB()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(["offline_sync_queue"], "readwrite")
+      const store = tx.objectStore("offline_sync_queue")
+      const req = store.delete(id)
+      req.onsuccess = () => resolve()
+      req.onerror = () => reject(req.error)
+    })
+  } catch (err) {
+    console.warn("Failed to remove sync job:", err)
+  }
+}
+

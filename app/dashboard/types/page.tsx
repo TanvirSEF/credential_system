@@ -8,6 +8,8 @@ import {
   archiveCredentialTypeAction,
   fetchCredentialTypesAction,
 } from "@/lib/actions/credential-types"
+import { addSyncJob, getCachedTypes, setCachedTypes } from "@/lib/storage/indexed-db"
+import { flushSyncQueue } from "@/lib/sync-engine"
 import { CreateTypeDialog } from "@/components/create-type-dialog"
 import { Button } from "@/components/ui/button"
 import {
@@ -73,8 +75,27 @@ function TypesDashboardContent() {
   }, [loadTypes])
 
   async function handleArchive(id: string) {
+    if (!vaultId) return
     if (!confirm("Are you sure you want to archive this category?")) return
-    await archiveCredentialTypeAction(id)
+    
+    const isOnline = navigator.onLine
+    if (isOnline) {
+      await archiveCredentialTypeAction(id)
+    } else {
+      await addSyncJob({
+        id: crypto.randomUUID(),
+        action: "ARCHIVE_TYPE",
+        payload: { id },
+        timestamp: Date.now()
+      })
+      
+      const existing = await getCachedTypes(vaultId)
+      await setCachedTypes(vaultId, existing.map(t => 
+        t.id === id ? { ...t, archivedAt: new Date() } : t
+      ))
+      flushSyncQueue()
+    }
+    
     loadTypes()
   }
 

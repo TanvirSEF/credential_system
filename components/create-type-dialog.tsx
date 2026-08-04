@@ -4,6 +4,8 @@ import { useState } from "react"
 import { encryptPayload } from "@/lib/crypto"
 import { createCredentialTypeAction } from "@/lib/actions/credential-types"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
+import { addSyncJob, getCachedTypes, setCachedTypes } from "@/lib/storage/indexed-db"
+import { flushSyncQueue } from "@/lib/sync-engine"
 import {
   Dialog,
   DialogContent,
@@ -91,16 +93,53 @@ export function CreateTypeDialog({
 
       const encrypted = await encryptPayload(payload, vaultKey)
 
-      const res = await createCredentialTypeAction({
-        vaultId,
-        parentId: parentId === "none" ? undefined : parentId,
-        payloadCiphertext: encrypted.ciphertext,
-        iv: encrypted.iv,
-        sortOrder: existingTypes.length,
-      })
+      const isOnline = navigator.onLine
 
-      if (res.error) {
-        throw new Error(res.error)
+      if (isOnline) {
+        const res = await createCredentialTypeAction({
+          vaultId,
+          parentId: parentId === "none" ? undefined : parentId,
+          payloadCiphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          sortOrder: existingTypes.length,
+        })
+
+        if (res.error) {
+          throw new Error(res.error)
+        }
+      } else {
+        const tempId = crypto.randomUUID()
+        const parentIdOrUndefined = parentId === "none" ? undefined : parentId
+        
+        await addSyncJob({
+          id: crypto.randomUUID(),
+          action: "CREATE_TYPE",
+          payload: {
+            vaultId,
+            parentId: parentIdOrUndefined,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+            sortOrder: existingTypes.length,
+          },
+          timestamp: Date.now()
+        })
+        
+        const existing = await getCachedTypes(vaultId)
+        await setCachedTypes(vaultId, [
+          ...existing,
+          {
+            id: tempId,
+            vaultId,
+            parentId: parentIdOrUndefined || null,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+            sortOrder: existingTypes.length,
+            cryptoVersion: 1,
+            archivedAt: null,
+          }
+        ])
+        
+        flushSyncQueue()
       }
 
       setName("")

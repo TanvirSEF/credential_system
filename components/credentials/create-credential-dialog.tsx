@@ -27,6 +27,8 @@ import type {
   FieldType,
 } from "@/lib/types/credential-template"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
+import { addSyncJob, getCachedCredentials, setCachedCredentials } from "@/lib/storage/indexed-db"
+import { flushSyncQueue } from "@/lib/sync-engine"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -191,23 +193,66 @@ export function CreateCredentialDialog({
       }
       const encrypted = await encryptPayload(payload, vaultKey)
 
-      if (editCredential) {
-        const result = await updateCredentialAction({
-          id: editCredential.id,
-          typeId: selectedTypeId === "none" ? undefined : selectedTypeId,
-          payloadCiphertext: encrypted.ciphertext,
-          iv: encrypted.iv,
-          version: editCredential.version,
-        })
-        if (result.error) throw new Error(result.error)
+      const isOnline = navigator.onLine
+
+      if (isOnline) {
+        if (editCredential) {
+          const result = await updateCredentialAction({
+            id: editCredential.id,
+            typeId: selectedTypeId === "none" ? undefined : selectedTypeId,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+            version: editCredential.version,
+          })
+          if (result.error) throw new Error(result.error)
+        } else {
+          const result = await createCredentialAction({
+            vaultId,
+            typeId: selectedTypeId === "none" ? undefined : selectedTypeId,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+          })
+          if (result.error) throw new Error(result.error)
+        }
       } else {
-        const result = await createCredentialAction({
-          vaultId,
-          typeId: selectedTypeId === "none" ? undefined : selectedTypeId,
-          payloadCiphertext: encrypted.ciphertext,
-          iv: encrypted.iv,
+        const tempId = editCredential ? editCredential.id : crypto.randomUUID()
+        const action = editCredential ? "UPDATE_CREDENTIAL" : "CREATE_CREDENTIAL"
+        const typeId = selectedTypeId === "none" ? undefined : selectedTypeId
+        
+        await addSyncJob({
+          id: crypto.randomUUID(),
+          action,
+          payload: editCredential
+            ? { id: editCredential.id, typeId, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv, version: editCredential.version }
+            : { vaultId, typeId, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv },
+          timestamp: Date.now()
         })
-        if (result.error) throw new Error(result.error)
+        
+        const existing = await getCachedCredentials(vaultId)
+        if (editCredential) {
+          await setCachedCredentials(vaultId, existing.map(c => 
+            c.id === editCredential.id 
+              ? { ...c, typeId: typeId || null, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv, version: editCredential.version + 1, updatedAt: new Date() }
+              : c
+          ))
+        } else {
+          await setCachedCredentials(vaultId, [
+            ...existing,
+            {
+              id: tempId,
+              vaultId,
+              typeId: typeId || null,
+              payloadCiphertext: encrypted.ciphertext,
+              iv: encrypted.iv,
+              cryptoVersion: 1,
+              version: 1,
+              deletedAt: null,
+              updatedAt: new Date()
+            }
+          ])
+        }
+        
+        flushSyncQueue()
       }
 
       resetForm()

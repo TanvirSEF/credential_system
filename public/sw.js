@@ -40,28 +40,52 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request).catch(() => caches.match(OFFLINE_URL))
-    );
-    return;
-  }
-
   const isStaticAsset =
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/icons/") ||
     url.pathname.startsWith("/images/");
 
-  if (!isStaticAsset) return;
+  if (isStaticAsset) {
+    event.respondWith(
+      caches.open(CACHE_VERSION).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
 
-  event.respondWith(
-    caches.open(CACHE_VERSION).then(async (cache) => {
-      const cached = await cache.match(request);
-      if (cached) return cached;
+        const response = await fetch(request);
+        if (response.ok) await cache.put(request, response.clone());
+        return response;
+      })
+    );
+    return;
+  }
 
-      const response = await fetch(request);
-      if (response.ok) await cache.put(request, response.clone());
-      return response;
-    })
-  );
+  if (request.mode === "navigate" || request.headers.has("RSC") || url.pathname.startsWith("/dashboard")) {
+    event.respondWith(
+      fetch(request)
+        .then(async (response) => {
+          if (response.ok) {
+            const cache = await caches.open(CACHE_VERSION);
+            // Store RSC without exact search params so we can hit it offline regardless of build id
+            const cacheRequest = request.mode === "navigate" 
+              ? request 
+              : new Request(url.pathname, { headers: request.headers });
+            await cache.put(cacheRequest, response.clone());
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cache = await caches.open(CACHE_VERSION);
+          const cacheRequest = request.mode === "navigate" 
+            ? request 
+            : new Request(url.pathname, { headers: request.headers });
+          
+          const cached = await cache.match(cacheRequest);
+          if (cached) return cached;
+          
+          if (request.mode === "navigate") return cache.match(OFFLINE_URL);
+          return new Response("Offline", { status: 503 });
+        })
+    );
+    return;
+  }
 });

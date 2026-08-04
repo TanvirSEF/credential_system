@@ -31,6 +31,8 @@ import {
 } from "@/lib/actions/notes"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
 import type { DecryptedNote, DecryptedNotePayload } from "@/lib/types/note"
+import { addSyncJob, getCachedNotes, setCachedNotes } from "@/lib/storage/indexed-db"
+import { flushSyncQueue } from "@/lib/sync-engine"
 
 export function NoteEditorDialog({
   note,
@@ -124,21 +126,62 @@ export function NoteEditorDialog({
       }
       const encrypted = await encryptPayload(payload, vaultKey)
 
-      if (isNew) {
-        const res = await createNoteAction({
-          vaultId,
-          payloadCiphertext: encrypted.ciphertext,
-          iv: encrypted.iv,
+      const isOnline = navigator.onLine
+
+      if (isOnline) {
+        if (isNew) {
+          const res = await createNoteAction({
+            vaultId,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+          })
+          if (res.error) throw new Error(res.error)
+        } else if (note) {
+          const res = await updateNoteAction({
+            id: note.id,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+            version: note.version,
+          })
+          if (res.error) throw new Error(res.error)
+        }
+      } else {
+        const tempId = isNew ? crypto.randomUUID() : note!.id
+        const action = isNew ? "CREATE_NOTE" : "UPDATE_NOTE"
+        
+        await addSyncJob({
+          id: crypto.randomUUID(),
+          action,
+          payload: isNew 
+            ? { vaultId, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv }
+            : { id: note!.id, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv, version: note!.version },
+          timestamp: Date.now()
         })
-        if (res.error) throw new Error(res.error)
-      } else if (note) {
-        const res = await updateNoteAction({
-          id: note.id,
-          payloadCiphertext: encrypted.ciphertext,
-          iv: encrypted.iv,
-          version: note.version,
-        })
-        if (res.error) throw new Error(res.error)
+        
+        const existing = await getCachedNotes(vaultId)
+        if (isNew) {
+          await setCachedNotes(vaultId, [
+            ...existing,
+            {
+              id: tempId,
+              vaultId,
+              payloadCiphertext: encrypted.ciphertext,
+              iv: encrypted.iv,
+              cryptoVersion: 1,
+              version: 1,
+              deletedAt: null,
+              updatedAt: new Date()
+            }
+          ])
+        } else {
+          await setCachedNotes(vaultId, existing.map(n => 
+            n.id === note!.id 
+              ? { ...n, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv, version: note!.version + 1, updatedAt: new Date() }
+              : n
+          ))
+        }
+        
+        flushSyncQueue()
       }
 
       setDirty(false)
@@ -156,8 +199,26 @@ export function NoteEditorDialog({
   }
 
   async function confirmDelete() {
-    if (!note) return
-    await softDeleteNoteAction(note.id)
+    if (!note || !vaultId) return
+    const isOnline = navigator.onLine
+
+    if (isOnline) {
+      await softDeleteNoteAction(note.id)
+    } else {
+      await addSyncJob({
+        id: crypto.randomUUID(),
+        action: "DELETE_NOTE",
+        payload: { id: note.id },
+        timestamp: Date.now()
+      })
+      
+      const existing = await getCachedNotes(vaultId)
+      await setCachedNotes(vaultId, existing.map(n => 
+        n.id === note.id ? { ...n, deletedAt: new Date() } : n
+      ))
+      flushSyncQueue()
+    }
+
     onOpenChange(false)
     onDeleted()
   }
