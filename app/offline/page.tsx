@@ -1,9 +1,37 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { CloudOff, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
+import { useVaultSessionStore } from "@/stores/vault-session-store"
 
 export default function OfflinePage() {
+  const router = useRouter()
+  const vaultId = useVaultSessionStore((s) => s.vaultId)
+  const [attempting, setAttempting] = useState(false)
+
+  useEffect(() => {
+    if (vaultId) {
+      setAttempting(true)
+      const t = setTimeout(() => router.replace("/dashboard"), 300)
+      return () => clearTimeout(t)
+    }
+  }, [vaultId, router])
+
+  if (attempting) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4 text-muted-foreground">
+          <RefreshCw className="size-6 animate-spin text-primary" />
+          <p className="text-sm font-medium">Entering offline mode...</p>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
       <div className="pointer-events-none absolute inset-0">
