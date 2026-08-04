@@ -47,7 +47,7 @@ async function requestInstall(): Promise<InstallRequestResult> {
   const choice = await prompt.userChoice
   if (choice.outcome === "accepted") {
     window.__spvInstallPrompt = undefined
-    window.dispatchEvent(new Event(INSTALL_READY_EVENT))
+    window.dispatchEvent(new Event(INSTALLED_EVENT))
     return "accepted"
   }
   return "dismissed"

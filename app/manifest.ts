@@ -1,13 +1,13 @@
-import type { MetadataRoute } from "next"
+﻿import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    id: "/dashboard",
+    id: "/",
     name: "Secure Personal Vault",
     short_name: "SP Vault",
     description:
       "A zero-knowledge encrypted vault for passwords, API keys, and private documents.",
-    start_url: "/dashboard",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     background_color: "#08132b",
@@ -39,17 +39,17 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       {
-        name: "Open vault",
-        short_name: "Vault",
-        description: "Sign in and unlock your encrypted vault",
-        url: "/dashboard",
-        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
-      },
-      {
         name: "Credentials",
         short_name: "Credentials",
         description: "Open encrypted credentials",
         url: "/dashboard/credentials",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "Notes",
+        short_name: "Notes",
+        description: "Open encrypted notes",
+        url: "/dashboard/notes",
         icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
       },
       {

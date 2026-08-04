@@ -43,6 +43,7 @@ export function createContentSecurityPolicy(
     `img-src 'self' blob: data: ${imageSources.join(" ")}`,
     "font-src 'self' data:",
     `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.pwnedpasswords.com ${connectSources.join(" ")}`,
+    "worker-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
