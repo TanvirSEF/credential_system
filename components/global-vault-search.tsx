@@ -219,16 +219,16 @@ export function GlobalVaultSearch() {
         <DialogHeader className="sr-only">
           <DialogTitle>Search vault</DialogTitle>
         </DialogHeader>
-        <div className="flex items-center gap-3 border-b px-4">
-          <Search className="size-5 text-muted-foreground" />
+        <div className="flex items-center gap-3 border-b pl-4 pr-12">
+          <Search className="size-5 shrink-0 text-muted-foreground" />
           <Input
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search credentials, projects, notes, and documents..."
-            className="h-14 border-0 px-0 shadow-none focus-visible:ring-0"
+            className="h-14 min-w-0 flex-1 border-0 px-0 shadow-none focus-visible:ring-0"
           />
-          <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          <kbd className="hidden shrink-0 rounded border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground sm:block">
             ESC
           </kbd>
         </div>

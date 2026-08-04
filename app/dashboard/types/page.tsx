@@ -98,10 +98,13 @@ function TypesDashboardContent() {
           Decrypting category templates...
         </div>
       ) : types.length === 0 ? (
-        <Card className="py-12 text-center">
-          <CardHeader>
-            <CardTitle>No Categories Found</CardTitle>
-            <CardDescription>
+        <Card className="border-dashed py-16 text-center shadow-sm">
+          <CardHeader className="items-center gap-3">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Folder className="h-7 w-7" />
+            </div>
+            <CardTitle className="text-xl">No Categories Found</CardTitle>
+            <CardDescription className="mx-auto max-w-sm">
               Create your first custom credential category template to organize
               your data.
             </CardDescription>
@@ -110,11 +113,13 @@ function TypesDashboardContent() {
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {types.map((type) => (
-            <Card key={type.id} className="relative shadow-sm">
+            <Card key={type.id} className="group relative overflow-hidden shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md">
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                 <div className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-lg font-bold">
-                    <Folder className="h-5 w-5 text-primary" />
+                  <CardTitle className="flex items-center gap-3 text-lg font-bold">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+                      <Folder className="h-4 w-4" />
+                    </div>
                     <span>{type.payload.name}</span>
                   </CardTitle>
                   {type.parentId && (
@@ -149,8 +154,8 @@ function TypesDashboardContent() {
                     {type.payload.fields.map((f) => (
                       <Badge
                         key={f.id}
-                        variant="outline"
-                        className="flex items-center gap-1 text-xs"
+                        variant="secondary"
+                        className="flex items-center gap-1 bg-secondary/50 text-xs font-normal transition-colors hover:bg-secondary/70"
                       >
                         {f.secret && (
                           <Lock className="h-3 w-3 text-muted-foreground" />

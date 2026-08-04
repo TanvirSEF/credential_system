@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import {
   AlertCircle,
   Eye,
@@ -8,6 +8,14 @@ import {
   ShieldCheck,
   Star,
   Trash2,
+  Bold,
+  Italic,
+  Heading,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  Link as LinkIcon,
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -50,6 +58,24 @@ export function NoteEditorDialog({
   const [error, setError] = useState<string | null>(null)
   const [discardOpen, setDiscardOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  function insertFormatting(prefix: string, suffix: string = "") {
+    if (!textareaRef.current) return
+    const textarea = textareaRef.current
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = content.substring(start, end)
+    
+    const newText = content.substring(0, start) + prefix + selectedText + suffix + content.substring(end)
+    setContent(newText)
+    setDirty(true)
+    
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(start + prefix.length, end + prefix.length)
+    }, 0)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -142,7 +168,7 @@ export function NoteEditorDialog({
     <>
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="grid max-h-[92dvh] grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] gap-0 overflow-hidden p-0 sm:max-w-3xl">
-          <DialogHeader className="border-b px-5 py-3 pr-14 sm:px-6">
+          <DialogHeader className="border-b py-3 pl-5 pr-14 sm:pl-6">
             <div className="flex items-center gap-2">
               <input
                 aria-label="Note title"
@@ -219,17 +245,48 @@ export function NoteEditorDialog({
             )}
 
             {tab === "write" ? (
-              <textarea
-                value={content}
-                onChange={(e) => {
-                  setContent(e.target.value)
-                  setDirty(true)
-                }}
-                placeholder={
-                  "# Heading\n\nWrite **Markdown** here — lists, `code`, and more.\n\n```js\nconsole.log('hi')\n```"
-                }
-                className="min-h-64 w-full resize-y rounded-lg border border-input bg-transparent p-3 font-mono text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-              />
+              <div className="flex min-h-[300px] flex-col overflow-hidden rounded-lg border border-input transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
+                <div className="flex flex-wrap items-center gap-1 border-b border-input bg-muted/40 px-2 py-1.5">
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("**", "**")} aria-label="Bold">
+                    <Bold className="size-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("*", "*")} aria-label="Italic">
+                    <Italic className="size-4" />
+                  </Button>
+                  <div className="mx-1 h-4 w-px bg-border" />
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("### ", "")} aria-label="Heading">
+                    <Heading className="size-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("- ", "")} aria-label="Bullet List">
+                    <List className="size-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("1. ", "")} aria-label="Numbered List">
+                    <ListOrdered className="size-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("> ", "")} aria-label="Quote">
+                    <Quote className="size-4" />
+                  </Button>
+                  <div className="mx-1 h-4 w-px bg-border" />
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("```\n", "\n```")} aria-label="Code Block">
+                    <Code className="size-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("[", "](url)")} aria-label="Link">
+                    <LinkIcon className="size-4" />
+                  </Button>
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  value={content}
+                  onChange={(e) => {
+                    setContent(e.target.value)
+                    setDirty(true)
+                  }}
+                  placeholder={
+                    "# Heading\n\nWrite **Markdown** here — lists, `code`, and more.\n\n```js\nconsole.log('hi')\n```"
+                  }
+                  className="w-full flex-1 resize-y bg-transparent p-3 font-mono text-sm outline-none placeholder:text-muted-foreground"
+                />
+              </div>
             ) : content.trim() ? (
               <MarkdownPreview content={content} />
             ) : (

@@ -152,10 +152,13 @@ function DocumentsContent() {
           Decrypting document metadata...
         </div>
       ) : documentsList.length === 0 ? (
-        <Card className="py-12 text-center">
-          <CardHeader>
-            <CardTitle>No Documents Uploaded</CardTitle>
-            <CardDescription>
+        <Card className="border-dashed py-16 text-center shadow-sm">
+          <CardHeader className="items-center gap-3">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <FileText className="h-7 w-7" />
+            </div>
+            <CardTitle className="text-xl">No Documents Uploaded</CardTitle>
+            <CardDescription className="mx-auto max-w-sm">
               Upload your first encrypted document (PDF, image, certificate,
               etc.).
             </CardDescription>
@@ -164,11 +167,13 @@ function DocumentsContent() {
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {documentsList.map((doc) => (
-            <Card key={doc.id} className="shadow-sm">
+            <Card key={doc.id} className="group relative overflow-hidden shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md">
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                 <div className="space-y-1 truncate pr-2">
-                  <CardTitle className="flex items-center gap-2 truncate text-base font-bold">
-                    <FileText className="h-4 w-4 shrink-0 text-primary" />
+                  <CardTitle className="flex items-center gap-3 truncate text-base font-bold">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+                      <FileText className="h-4 w-4" />
+                    </div>
                     <span className="truncate">
                       {doc.metadata.originalName}
                     </span>
