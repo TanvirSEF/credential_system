@@ -1,4 +1,4 @@
-const CACHE_VERSION = "spv-static-v1";
+const CACHE_VERSION = "spv-static-v2";
 const OFFLINE_URL = "/offline";
 const PRECACHE_URLS = [
   OFFLINE_URL,
@@ -79,10 +79,16 @@ self.addEventListener("fetch", (event) => {
             ? request 
             : new Request(url.pathname, { headers: request.headers });
           
-          const cached = await cache.match(cacheRequest);
-          if (cached) return cached;
+          let cached = await cache.match(cacheRequest);
           
-          if (request.mode === "navigate") return cache.match(OFFLINE_URL);
+          if (!cached && request.mode === "navigate") {
+            if (url.pathname === "/login" || url.pathname === "/") {
+              return Response.redirect("/dashboard", 302);
+            }
+            cached = await cache.match(OFFLINE_URL);
+          }
+          
+          if (cached) return cached;
           return new Response("Offline", { status: 503 });
         })
     );
