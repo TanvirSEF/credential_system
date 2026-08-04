@@ -1,4 +1,4 @@
-﻿const CACHE_VERSION = "spv-v4";
+const CACHE_VERSION = "spv-v5";
 const OFFLINE_URL = "/offline";
 
 self.addEventListener("install", (event) => {

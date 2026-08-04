@@ -1,13 +1,13 @@
-﻿import type { MetadataRoute } from "next"
+import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    id: "/",
+    id: "/?v=2",
     name: "Secure Personal Vault",
     short_name: "SP Vault",
     description:
       "A zero-knowledge encrypted vault for passwords, API keys, and private documents.",
-    start_url: "/",
+    start_url: "/?v=2",
     scope: "/",
     display: "standalone",
     background_color: "#08132b",
