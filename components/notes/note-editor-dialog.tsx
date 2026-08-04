@@ -31,7 +31,11 @@ import {
 } from "@/lib/actions/notes"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
 import type { DecryptedNote, DecryptedNotePayload } from "@/lib/types/note"
-import { addSyncJob, getCachedNotes, setCachedNotes } from "@/lib/storage/indexed-db"
+import {
+  enqueueSyncJob,
+  getCachedNotes,
+  setCachedNotes,
+} from "@/lib/storage/indexed-db"
 import { flushSyncQueue } from "@/lib/sync-engine"
 
 export function NoteEditorDialog({
@@ -68,11 +72,16 @@ export function NoteEditorDialog({
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
     const selectedText = content.substring(start, end)
-    
-    const newText = content.substring(0, start) + prefix + selectedText + suffix + content.substring(end)
+
+    const newText =
+      content.substring(0, start) +
+      prefix +
+      selectedText +
+      suffix +
+      content.substring(end)
     setContent(newText)
     setDirty(true)
-    
+
     setTimeout(() => {
       textarea.focus()
       textarea.setSelectionRange(start + prefix.length, end + prefix.length)
@@ -147,17 +156,23 @@ export function NoteEditorDialog({
         }
       } else {
         const tempId = isNew ? crypto.randomUUID() : note!.id
-        const action = isNew ? "CREATE_NOTE" : "UPDATE_NOTE"
-        
-        await addSyncJob({
-          id: crypto.randomUUID(),
-          action,
-          payload: isNew 
-            ? { vaultId, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv }
-            : { id: note!.id, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv, version: note!.version },
-          timestamp: Date.now()
-        })
-        
+
+        if (isNew) {
+          await enqueueSyncJob("CREATE_NOTE", {
+            id: tempId,
+            vaultId,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+          })
+        } else {
+          await enqueueSyncJob("UPDATE_NOTE", {
+            id: note!.id,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+            version: note!.version,
+          })
+        }
+
         const existing = await getCachedNotes(vaultId)
         if (isNew) {
           await setCachedNotes(vaultId, [
@@ -170,17 +185,26 @@ export function NoteEditorDialog({
               cryptoVersion: 1,
               version: 1,
               deletedAt: null,
-              updatedAt: new Date()
-            }
+              updatedAt: new Date(),
+            },
           ])
         } else {
-          await setCachedNotes(vaultId, existing.map(n => 
-            n.id === note!.id 
-              ? { ...n, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv, version: note!.version + 1, updatedAt: new Date() }
-              : n
-          ))
+          await setCachedNotes(
+            vaultId,
+            existing.map((n) =>
+              n.id === note!.id
+                ? {
+                    ...n,
+                    payloadCiphertext: encrypted.ciphertext,
+                    iv: encrypted.iv,
+                    version: note!.version + 1,
+                    updatedAt: new Date(),
+                  }
+                : n
+            )
+          )
         }
-        
+
         flushSyncQueue()
       }
 
@@ -205,17 +229,15 @@ export function NoteEditorDialog({
     if (isOnline) {
       await softDeleteNoteAction(note.id)
     } else {
-      await addSyncJob({
-        id: crypto.randomUUID(),
-        action: "DELETE_NOTE",
-        payload: { id: note.id },
-        timestamp: Date.now()
-      })
-      
+      await enqueueSyncJob("DELETE_NOTE", { id: note.id })
+
       const existing = await getCachedNotes(vaultId)
-      await setCachedNotes(vaultId, existing.map(n => 
-        n.id === note.id ? { ...n, deletedAt: new Date() } : n
-      ))
+      await setCachedNotes(
+        vaultId,
+        existing.map((n) =>
+          n.id === note.id ? { ...n, deletedAt: new Date() } : n
+        )
+      )
       flushSyncQueue()
     }
 
@@ -229,7 +251,7 @@ export function NoteEditorDialog({
     <>
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="grid max-h-[92dvh] grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] gap-0 overflow-hidden p-0 sm:max-w-3xl">
-          <DialogHeader className="border-b py-3 pl-5 pr-14 sm:pl-6">
+          <DialogHeader className="border-b py-3 pr-14 pl-5 sm:pl-6">
             <div className="flex items-center gap-2">
               <input
                 aria-label="Note title"
@@ -308,30 +330,86 @@ export function NoteEditorDialog({
             {tab === "write" ? (
               <div className="flex min-h-[300px] flex-col overflow-hidden rounded-lg border border-input transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
                 <div className="flex flex-wrap items-center gap-1 border-b border-input bg-muted/40 px-2 py-1.5">
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("**", "**")} aria-label="Bold">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => insertFormatting("**", "**")}
+                    aria-label="Bold"
+                  >
                     <Bold className="size-4" />
                   </Button>
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("*", "*")} aria-label="Italic">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => insertFormatting("*", "*")}
+                    aria-label="Italic"
+                  >
                     <Italic className="size-4" />
                   </Button>
                   <div className="mx-1 h-4 w-px bg-border" />
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("### ", "")} aria-label="Heading">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => insertFormatting("### ", "")}
+                    aria-label="Heading"
+                  >
                     <Heading className="size-4" />
                   </Button>
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("- ", "")} aria-label="Bullet List">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => insertFormatting("- ", "")}
+                    aria-label="Bullet List"
+                  >
                     <List className="size-4" />
                   </Button>
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("1. ", "")} aria-label="Numbered List">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => insertFormatting("1. ", "")}
+                    aria-label="Numbered List"
+                  >
                     <ListOrdered className="size-4" />
                   </Button>
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("> ", "")} aria-label="Quote">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => insertFormatting("> ", "")}
+                    aria-label="Quote"
+                  >
                     <Quote className="size-4" />
                   </Button>
                   <div className="mx-1 h-4 w-px bg-border" />
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("```\n", "\n```")} aria-label="Code Block">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => insertFormatting("```\n", "\n```")}
+                    aria-label="Code Block"
+                  >
                     <Code className="size-4" />
                   </Button>
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => insertFormatting("[", "](url)")} aria-label="Link">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => insertFormatting("[", "](url)")}
+                    aria-label="Link"
+                  >
                     <LinkIcon className="size-4" />
                   </Button>
                 </div>

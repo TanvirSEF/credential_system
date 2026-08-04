@@ -34,6 +34,7 @@ export async function fetchCredentialTypesAction(vaultId: string) {
 }
 
 export async function createCredentialTypeAction(payload: {
+  id?: string
   vaultId: string
   parentId?: string
   payloadCiphertext: string
@@ -50,6 +51,7 @@ export async function createCredentialTypeAction(payload: {
   }
   if (
     !isUuid(payload.vaultId) ||
+    (payload.id && !isUuid(payload.id)) ||
     (payload.parentId && !isUuid(payload.parentId))
   ) {
     return { error: "Invalid vault or parent category identifier." }
@@ -83,6 +85,7 @@ export async function createCredentialTypeAction(payload: {
     const inserted = await tx
       .insert(credentialTypes)
       .values({
+        ...(payload.id ? { id: payload.id } : {}),
         vaultId: payload.vaultId,
         ownerId: user.id,
         parentId: payload.parentId || null,
@@ -92,6 +95,7 @@ export async function createCredentialTypeAction(payload: {
         cryptoVersion: 1,
         schemaVersion: 1,
       })
+      .onConflictDoNothing({ target: credentialTypes.id })
       .returning()
 
     return { success: true, newType: inserted[0] }

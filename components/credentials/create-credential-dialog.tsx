@@ -27,7 +27,11 @@ import type {
   FieldType,
 } from "@/lib/types/credential-template"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
-import { addSyncJob, getCachedCredentials, setCachedCredentials } from "@/lib/storage/indexed-db"
+import {
+  enqueueSyncJob,
+  getCachedCredentials,
+  setCachedCredentials,
+} from "@/lib/storage/indexed-db"
 import { flushSyncQueue } from "@/lib/sync-engine"
 import { Button } from "@/components/ui/button"
 import {
@@ -216,25 +220,43 @@ export function CreateCredentialDialog({
         }
       } else {
         const tempId = editCredential ? editCredential.id : crypto.randomUUID()
-        const action = editCredential ? "UPDATE_CREDENTIAL" : "CREATE_CREDENTIAL"
         const typeId = selectedTypeId === "none" ? undefined : selectedTypeId
-        
-        await addSyncJob({
-          id: crypto.randomUUID(),
-          action,
-          payload: editCredential
-            ? { id: editCredential.id, typeId, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv, version: editCredential.version }
-            : { vaultId, typeId, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv },
-          timestamp: Date.now()
-        })
-        
+
+        if (editCredential) {
+          await enqueueSyncJob("UPDATE_CREDENTIAL", {
+            id: editCredential.id,
+            typeId,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+            version: editCredential.version,
+          })
+        } else {
+          await enqueueSyncJob("CREATE_CREDENTIAL", {
+            id: tempId,
+            vaultId,
+            typeId,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+          })
+        }
+
         const existing = await getCachedCredentials(vaultId)
         if (editCredential) {
-          await setCachedCredentials(vaultId, existing.map(c => 
-            c.id === editCredential.id 
-              ? { ...c, typeId: typeId || null, payloadCiphertext: encrypted.ciphertext, iv: encrypted.iv, version: editCredential.version + 1, updatedAt: new Date() }
-              : c
-          ))
+          await setCachedCredentials(
+            vaultId,
+            existing.map((c) =>
+              c.id === editCredential.id
+                ? {
+                    ...c,
+                    typeId: typeId || null,
+                    payloadCiphertext: encrypted.ciphertext,
+                    iv: encrypted.iv,
+                    version: editCredential.version + 1,
+                    updatedAt: new Date(),
+                  }
+                : c
+            )
+          )
         } else {
           await setCachedCredentials(vaultId, [
             ...existing,
@@ -247,11 +269,11 @@ export function CreateCredentialDialog({
               cryptoVersion: 1,
               version: 1,
               deletedAt: null,
-              updatedAt: new Date()
-            }
+              updatedAt: new Date(),
+            },
           ])
         }
-        
+
         flushSyncQueue()
       }
 

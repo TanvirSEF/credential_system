@@ -60,6 +60,7 @@ export async function fetchTrashNotesAction(vaultId: string) {
 }
 
 export async function createNoteAction(payload: {
+  id?: string
   vaultId: string
   payloadCiphertext: string
   iv: string
@@ -72,7 +73,9 @@ export async function createNoteAction(payload: {
   if (!user) {
     return { error: "Not authenticated." }
   }
-  if (!isUuid(payload.vaultId)) return { error: "Invalid vault identifier." }
+  if (!isUuid(payload.vaultId) || (payload.id && !isUuid(payload.id))) {
+    return { error: "Invalid note or vault identifier." }
+  }
   const validationError = validateEncryptedPayload(
     payload.payloadCiphertext,
     payload.iv,
@@ -88,6 +91,7 @@ export async function createNoteAction(payload: {
     const inserted = await tx
       .insert(notes)
       .values({
+        ...(payload.id ? { id: payload.id } : {}),
         vaultId: payload.vaultId,
         ownerId: user.id,
         payloadCiphertext: payload.payloadCiphertext,
@@ -95,6 +99,7 @@ export async function createNoteAction(payload: {
         cryptoVersion: 1,
         schemaVersion: 1,
       })
+      .onConflictDoNothing({ target: notes.id })
       .returning()
 
     return { success: true, newNote: inserted[0] }

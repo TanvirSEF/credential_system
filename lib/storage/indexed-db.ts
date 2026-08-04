@@ -289,32 +289,113 @@ export async function getCachedNotes(
 export async function clearVaultCache(): Promise<void> {
   try {
     const db = await openDB()
-    const tx = db.transaction(
-      [
-        "credentials_cache",
-        "types_cache",
-        "projects_cache",
-        "notes_cache",
-        "vault_meta",
-      ],
-      "readwrite"
-    )
-    tx.objectStore("credentials_cache").clear()
-    tx.objectStore("types_cache").clear()
-    tx.objectStore("projects_cache").clear()
-    tx.objectStore("notes_cache").clear()
-    tx.objectStore("vault_meta").clear()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(
+        [
+          "credentials_cache",
+          "types_cache",
+          "projects_cache",
+          "notes_cache",
+          "vault_meta",
+          "offline_sync_queue",
+        ],
+        "readwrite"
+      )
+      tx.objectStore("credentials_cache").clear()
+      tx.objectStore("types_cache").clear()
+      tx.objectStore("projects_cache").clear()
+      tx.objectStore("notes_cache").clear()
+      tx.objectStore("vault_meta").clear()
+      tx.objectStore("offline_sync_queue").clear()
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+      tx.onabort = () => reject(tx.error)
+    })
   } catch (err) {
     console.warn("IndexedDB cache clear warning:", err)
   }
 }
 
 // -- Sync Queue --
-export interface SyncJob {
-  id: string
-  action: "CREATE_NOTE" | "UPDATE_NOTE" | "DELETE_NOTE" | "CREATE_CREDENTIAL" | "UPDATE_CREDENTIAL" | "DELETE_CREDENTIAL" | "CREATE_TYPE" | "ARCHIVE_TYPE"
-  payload: any
-  timestamp: number
+export interface SyncJobPayloadMap {
+  CREATE_NOTE: {
+    id: string
+    vaultId: string
+    payloadCiphertext: string
+    iv: string
+  }
+  UPDATE_NOTE: {
+    id: string
+    payloadCiphertext: string
+    iv: string
+    version: number
+  }
+  DELETE_NOTE: { id: string }
+  CREATE_CREDENTIAL: {
+    id: string
+    vaultId: string
+    typeId?: string
+    payloadCiphertext: string
+    iv: string
+  }
+  UPDATE_CREDENTIAL: {
+    id: string
+    typeId?: string
+    payloadCiphertext: string
+    iv: string
+    version: number
+  }
+  DELETE_CREDENTIAL: { id: string }
+  CREATE_TYPE: {
+    id: string
+    vaultId: string
+    parentId?: string
+    payloadCiphertext: string
+    iv: string
+    sortOrder: number
+  }
+  ARCHIVE_TYPE: { id: string }
+  CREATE_PROJECT: {
+    id: string
+    vaultId: string
+    payloadCiphertext: string
+    iv: string
+  }
+  UPDATE_PROJECT: {
+    id: string
+    payloadCiphertext: string
+    iv: string
+    version: number
+  }
+  DELETE_PROJECT: { id: string }
+}
+
+export type SyncJob = {
+  [Action in keyof SyncJobPayloadMap]: {
+    id: string
+    action: Action
+    payload: SyncJobPayloadMap[Action]
+    timestamp: number
+  }
+}[keyof SyncJobPayloadMap]
+
+let lastSyncTimestamp = 0
+
+function nextSyncTimestamp(): number {
+  lastSyncTimestamp = Math.max(Date.now(), lastSyncTimestamp + 1)
+  return lastSyncTimestamp
+}
+
+export async function enqueueSyncJob<Action extends keyof SyncJobPayloadMap>(
+  action: Action,
+  payload: SyncJobPayloadMap[Action]
+): Promise<void> {
+  await addSyncJob({
+    id: crypto.randomUUID(),
+    action,
+    payload,
+    timestamp: nextSyncTimestamp(),
+  } as Extract<SyncJob, { action: Action }>)
 }
 
 export async function addSyncJob(job: SyncJob): Promise<void> {
@@ -364,4 +445,3 @@ export async function removeSyncJob(id: string): Promise<void> {
     console.warn("Failed to remove sync job:", err)
   }
 }
-

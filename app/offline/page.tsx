@@ -1,37 +1,9 @@
-"use client"
-
-import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { CloudOff, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
-import { useVaultSessionStore } from "@/stores/vault-session-store"
 
 export default function OfflinePage() {
-  const router = useRouter()
-  const vaultId = useVaultSessionStore((s) => s.vaultId)
-  const [attempting, setAttempting] = useState(false)
-
-  useEffect(() => {
-    if (vaultId) {
-      setAttempting(true)
-      const t = setTimeout(() => router.replace("/dashboard"), 300)
-      return () => clearTimeout(t)
-    }
-  }, [vaultId, router])
-
-  if (attempting) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <RefreshCw className="size-6 animate-spin text-primary" />
-          <p className="text-sm font-medium">Entering offline mode...</p>
-        </div>
-      </main>
-    )
-  }
-
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
       <div className="pointer-events-none absolute inset-0">
@@ -49,15 +21,16 @@ export default function OfflinePage() {
             You&apos;re offline
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Secure Personal Vault needs a connection to verify your session and
-            load encrypted data.
+            This page was opened without a network connection. Reconnect before
+            signing in, unlocking, or reloading the vault.
           </p>
 
           <div className="mt-5 rounded-xl border bg-muted/20 p-3.5 text-left">
             <div className="flex items-start gap-2.5 text-xs leading-relaxed text-muted-foreground">
               <LockKeyhole className="mt-0.5 size-4 shrink-0 text-primary" />
-              Authenticated pages and encrypted records are intentionally never
-              stored in the offline page cache.
+              If your vault was already unlocked, return to its still-open tab
+              without refreshing it. The in-memory key and encrypted local cache
+              remain usable only for that active session.
             </div>
           </div>
 

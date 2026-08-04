@@ -4,7 +4,11 @@ import { useState } from "react"
 import { encryptPayload } from "@/lib/crypto"
 import { createCredentialTypeAction } from "@/lib/actions/credential-types"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
-import { addSyncJob, getCachedTypes, setCachedTypes } from "@/lib/storage/indexed-db"
+import {
+  enqueueSyncJob,
+  getCachedTypes,
+  setCachedTypes,
+} from "@/lib/storage/indexed-db"
 import { flushSyncQueue } from "@/lib/sync-engine"
 import {
   Dialog,
@@ -110,20 +114,16 @@ export function CreateTypeDialog({
       } else {
         const tempId = crypto.randomUUID()
         const parentIdOrUndefined = parentId === "none" ? undefined : parentId
-        
-        await addSyncJob({
-          id: crypto.randomUUID(),
-          action: "CREATE_TYPE",
-          payload: {
-            vaultId,
-            parentId: parentIdOrUndefined,
-            payloadCiphertext: encrypted.ciphertext,
-            iv: encrypted.iv,
-            sortOrder: existingTypes.length,
-          },
-          timestamp: Date.now()
+
+        await enqueueSyncJob("CREATE_TYPE", {
+          id: tempId,
+          vaultId,
+          parentId: parentIdOrUndefined,
+          payloadCiphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          sortOrder: existingTypes.length,
         })
-        
+
         const existing = await getCachedTypes(vaultId)
         await setCachedTypes(vaultId, [
           ...existing,
@@ -136,9 +136,9 @@ export function CreateTypeDialog({
             sortOrder: existingTypes.length,
             cryptoVersion: 1,
             archivedAt: null,
-          }
+          },
         ])
-        
+
         flushSyncQueue()
       }
 

@@ -5,7 +5,11 @@ import { VaultGuard } from "@/components/vault-guard"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
 import { decryptPayload, encryptPayload } from "@/lib/crypto"
 import { fetchNotesAction, updateNoteAction } from "@/lib/actions/notes"
-import { setCachedNotes, getCachedNotes } from "@/lib/storage/indexed-db"
+import {
+  enqueueSyncJob,
+  setCachedNotes,
+  getCachedNotes,
+} from "@/lib/storage/indexed-db"
 import {
   subscribeBroadcast,
   broadcastMessage,
@@ -113,49 +117,58 @@ function NotesContent() {
       setLoading(true)
     }
 
-    const res = await fetchNotesAction(vaultId)
-    if (res.notes && res.notes.length > 0) {
-      const decrypted = await Promise.all(
-        res.notes.map(async (n) => ({
-          id: n.id,
-          vaultId: n.vaultId,
-          ownerId: n.ownerId,
-          deletedAt: n.deletedAt,
-          version: n.version,
-          createdAt: n.createdAt,
-          updatedAt: n.updatedAt,
-          payload: await decryptPayload<DecryptedNotePayload>(
-            {
-              ciphertext: n.payloadCiphertext,
-              iv: n.iv,
-              cryptoVersion: n.cryptoVersion,
-              schemaVersion: n.schemaVersion,
-            },
-            vaultKey
-          ),
-        }))
-      )
-      setNotesList(decrypted)
-
-      setCachedNotes(
-        vaultId,
-        res.notes.map((n) => ({
-          id: n.id,
-          vaultId: n.vaultId,
-          payloadCiphertext: n.payloadCiphertext,
-          iv: n.iv,
-          cryptoVersion: n.cryptoVersion,
-          version: n.version,
-          deletedAt: n.deletedAt,
-          updatedAt: n.updatedAt,
-        }))
-      )
-    } else {
-      setNotesList([])
-      setCachedNotes(vaultId, [])
+    if (!navigator.onLine) {
+      setLoading(false)
+      return
     }
 
-    setLoading(false)
+    try {
+      const res = await fetchNotesAction(vaultId)
+      if (res.notes && res.notes.length > 0) {
+        const decrypted = await Promise.all(
+          res.notes.map(async (n) => ({
+            id: n.id,
+            vaultId: n.vaultId,
+            ownerId: n.ownerId,
+            deletedAt: n.deletedAt,
+            version: n.version,
+            createdAt: n.createdAt,
+            updatedAt: n.updatedAt,
+            payload: await decryptPayload<DecryptedNotePayload>(
+              {
+                ciphertext: n.payloadCiphertext,
+                iv: n.iv,
+                cryptoVersion: n.cryptoVersion,
+                schemaVersion: n.schemaVersion,
+              },
+              vaultKey
+            ),
+          }))
+        )
+        setNotesList(decrypted)
+
+        await setCachedNotes(
+          vaultId,
+          res.notes.map((n) => ({
+            id: n.id,
+            vaultId: n.vaultId,
+            payloadCiphertext: n.payloadCiphertext,
+            iv: n.iv,
+            cryptoVersion: n.cryptoVersion,
+            version: n.version,
+            deletedAt: n.deletedAt,
+            updatedAt: n.updatedAt,
+          }))
+        )
+      } else {
+        setNotesList([])
+        await setCachedNotes(vaultId, [])
+      }
+    } catch (error) {
+      console.warn("Using cached notes while offline:", error)
+    } finally {
+      setLoading(false)
+    }
   }, [vaultId, vaultKey])
 
   useEffect(() => {
@@ -237,14 +250,38 @@ function NotesContent() {
     if (selectedNote?.id === note.id) setSelectedNote(updated)
     try {
       const encrypted = await encryptPayload(updated.payload, vaultKey)
-      const result = await updateNoteAction({
-        id: note.id,
-        payloadCiphertext: encrypted.ciphertext,
-        iv: encrypted.iv,
-        version: note.version,
-      })
-      if (result.error) throw new Error(result.error)
-      broadcastMessage({ type: "CACHE_INVALIDATED" })
+      if (navigator.onLine) {
+        const result = await updateNoteAction({
+          id: note.id,
+          payloadCiphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          version: note.version,
+        })
+        if (result.error) throw new Error(result.error)
+        broadcastMessage({ type: "CACHE_INVALIDATED" })
+      } else if (vaultId) {
+        await enqueueSyncJob("UPDATE_NOTE", {
+          id: note.id,
+          payloadCiphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          version: note.version,
+        })
+        const existing = await getCachedNotes(vaultId)
+        await setCachedNotes(
+          vaultId,
+          existing.map((cached) =>
+            cached.id === note.id
+              ? {
+                  ...cached,
+                  payloadCiphertext: encrypted.ciphertext,
+                  iv: encrypted.iv,
+                  version: note.version + 1,
+                  updatedAt: new Date(),
+                }
+              : cached
+          )
+        )
+      }
       loadData()
     } catch (err) {
       console.error("Failed to toggle favorite", err)

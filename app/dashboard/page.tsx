@@ -35,10 +35,14 @@ function DashboardContent() {
 
   useEffect(() => {
     async function loadProfile() {
-      const userProf = await getUserProfileAction()
-      if (userProf) setProfile(userProf)
+      try {
+        const userProf = await getUserProfileAction()
+        if (userProf) setProfile(userProf)
+      } catch {
+        // The unlocked vault remains usable from encrypted local caches offline.
+      }
     }
-    loadProfile()
+    void loadProfile()
   }, [])
 
   const greeting = (() => {

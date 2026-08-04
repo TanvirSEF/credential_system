@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button"
 import { BrandLogo } from "@/components/brand-logo"
 import { signOutAction } from "@/lib/actions/auth"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
+import { clearVaultCache } from "@/lib/storage/indexed-db"
 
 const navigation = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -64,6 +65,7 @@ export function DashboardMobileNavigation() {
   async function handleSignOut() {
     setMoreOpen(false)
     lockVault()
+    await clearVaultCache()
     await signOutAction()
   }
 

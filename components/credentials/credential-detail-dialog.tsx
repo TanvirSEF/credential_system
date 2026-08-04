@@ -23,7 +23,11 @@ import {
   Trash2,
 } from "lucide-react"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
-import { addSyncJob, getCachedCredentials, setCachedCredentials } from "@/lib/storage/indexed-db"
+import {
+  enqueueSyncJob,
+  getCachedCredentials,
+  setCachedCredentials,
+} from "@/lib/storage/indexed-db"
 import { flushSyncQueue } from "@/lib/sync-engine"
 
 function isSafeHref(url: string): boolean {
@@ -83,28 +87,26 @@ export function CredentialDetailDialog({
   async function handleDelete() {
     if (!credential) return
     if (!confirm("Move this credential to Trash?")) return
-    
+
     const isOnline = navigator.onLine
     if (isOnline) {
       await softDeleteCredentialAction(credential.id)
     } else {
-      await addSyncJob({
-        id: crypto.randomUUID(),
-        action: "DELETE_CREDENTIAL",
-        payload: { id: credential.id },
-        timestamp: Date.now()
-      })
-      
+      await enqueueSyncJob("DELETE_CREDENTIAL", { id: credential.id })
+
       const { vaultId } = useVaultSessionStore.getState()
       if (vaultId) {
         const existing = await getCachedCredentials(vaultId)
-        await setCachedCredentials(vaultId, existing.map(c => 
-          c.id === credential.id ? { ...c, deletedAt: new Date() } : c
-        ))
+        await setCachedCredentials(
+          vaultId,
+          existing.map((c) =>
+            c.id === credential.id ? { ...c, deletedAt: new Date() } : c
+          )
+        )
         flushSyncQueue()
       }
     }
-    
+
     onOpenChange(false)
     onDeleted()
   }

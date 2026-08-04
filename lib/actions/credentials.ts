@@ -60,6 +60,7 @@ export async function fetchTrashCredentialsAction(vaultId: string) {
 }
 
 export async function createCredentialAction(payload: {
+  id?: string
   vaultId: string
   typeId?: string
   payloadCiphertext: string
@@ -73,7 +74,11 @@ export async function createCredentialAction(payload: {
   if (!user) {
     return { error: "Not authenticated." }
   }
-  if (!isUuid(payload.vaultId) || (payload.typeId && !isUuid(payload.typeId))) {
+  if (
+    !isUuid(payload.vaultId) ||
+    (payload.id && !isUuid(payload.id)) ||
+    (payload.typeId && !isUuid(payload.typeId))
+  ) {
     return { error: "Invalid vault or credential type identifier." }
   }
   const validationError = validateEncryptedPayload(
@@ -102,6 +107,7 @@ export async function createCredentialAction(payload: {
     const inserted = await tx
       .insert(credentials)
       .values({
+        ...(payload.id ? { id: payload.id } : {}),
         vaultId: payload.vaultId,
         ownerId: user.id,
         typeId: payload.typeId || null,
@@ -110,6 +116,7 @@ export async function createCredentialAction(payload: {
         cryptoVersion: 1,
         schemaVersion: 1,
       })
+      .onConflictDoNothing({ target: credentials.id })
       .returning()
 
     return { success: true, newCredential: inserted[0] }

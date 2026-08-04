@@ -12,6 +12,12 @@ import type {
   DecryptedProjectPayload,
 } from "@/lib/types/project"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
+import {
+  enqueueSyncJob,
+  getCachedProjects,
+  setCachedProjects,
+} from "@/lib/storage/indexed-db"
+import { flushSyncQueue } from "@/lib/sync-engine"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -88,21 +94,61 @@ export function CreateProjectDialog({
       }
       const encrypted = await encryptPayload(payload, vaultKey)
 
-      if (editProject) {
-        const result = await updateProjectAction({
-          id: editProject.id,
-          payloadCiphertext: encrypted.ciphertext,
-          iv: encrypted.iv,
-          version: editProject.version,
-        })
-        if (result.error) throw new Error(result.error)
+      if (navigator.onLine) {
+        if (editProject) {
+          const result = await updateProjectAction({
+            id: editProject.id,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+            version: editProject.version,
+          })
+          if (result.error) throw new Error(result.error)
+        } else {
+          const result = await createProjectAction({
+            vaultId,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+          })
+          if (result.error) throw new Error(result.error)
+        }
       } else {
-        const result = await createProjectAction({
+        const id = editProject?.id ?? crypto.randomUUID()
+        if (editProject) {
+          await enqueueSyncJob("UPDATE_PROJECT", {
+            id,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+            version: editProject.version,
+          })
+        } else {
+          await enqueueSyncJob("CREATE_PROJECT", {
+            id,
+            vaultId,
+            payloadCiphertext: encrypted.ciphertext,
+            iv: encrypted.iv,
+          })
+        }
+
+        const existing = await getCachedProjects(vaultId)
+        const cachedProject = {
+          id,
           vaultId,
           payloadCiphertext: encrypted.ciphertext,
           iv: encrypted.iv,
-        })
-        if (result.error) throw new Error(result.error)
+          cryptoVersion: 1,
+          version: editProject ? editProject.version + 1 : 1,
+          deletedAt: null,
+          updatedAt: new Date(),
+        }
+        await setCachedProjects(
+          vaultId,
+          editProject
+            ? existing.map((project) =>
+                project.id === id ? cachedProject : project
+              )
+            : [...existing, cachedProject]
+        )
+        void flushSyncQueue()
       }
 
       resetForm()

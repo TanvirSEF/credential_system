@@ -8,7 +8,11 @@ import {
   fetchProjectsAction,
   updateProjectAction,
 } from "@/lib/actions/projects"
-import { setCachedProjects, getCachedProjects } from "@/lib/storage/indexed-db"
+import {
+  enqueueSyncJob,
+  setCachedProjects,
+  getCachedProjects,
+} from "@/lib/storage/indexed-db"
 import {
   subscribeBroadcast,
   broadcastMessage,
@@ -125,49 +129,58 @@ function ProjectsContent() {
       setLoading(true)
     }
 
-    const res = await fetchProjectsAction(vaultId)
-    if (res.projects && res.projects.length > 0) {
-      const decrypted = await Promise.all(
-        res.projects.map(async (p) => ({
-          id: p.id,
-          vaultId: p.vaultId,
-          ownerId: p.ownerId,
-          deletedAt: p.deletedAt,
-          version: p.version,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-          payload: await decryptPayload<DecryptedProjectPayload>(
-            {
-              ciphertext: p.payloadCiphertext,
-              iv: p.iv,
-              cryptoVersion: p.cryptoVersion,
-              schemaVersion: p.schemaVersion,
-            },
-            vaultKey
-          ),
-        }))
-      )
-      setProjectsList(decrypted)
-
-      setCachedProjects(
-        vaultId,
-        res.projects.map((p) => ({
-          id: p.id,
-          vaultId: p.vaultId,
-          payloadCiphertext: p.payloadCiphertext,
-          iv: p.iv,
-          cryptoVersion: p.cryptoVersion,
-          version: p.version,
-          deletedAt: p.deletedAt,
-          updatedAt: p.updatedAt,
-        }))
-      )
-    } else {
-      setProjectsList([])
-      setCachedProjects(vaultId, [])
+    if (!navigator.onLine) {
+      setLoading(false)
+      return
     }
 
-    setLoading(false)
+    try {
+      const res = await fetchProjectsAction(vaultId)
+      if (res.projects && res.projects.length > 0) {
+        const decrypted = await Promise.all(
+          res.projects.map(async (p) => ({
+            id: p.id,
+            vaultId: p.vaultId,
+            ownerId: p.ownerId,
+            deletedAt: p.deletedAt,
+            version: p.version,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+            payload: await decryptPayload<DecryptedProjectPayload>(
+              {
+                ciphertext: p.payloadCiphertext,
+                iv: p.iv,
+                cryptoVersion: p.cryptoVersion,
+                schemaVersion: p.schemaVersion,
+              },
+              vaultKey
+            ),
+          }))
+        )
+        setProjectsList(decrypted)
+
+        await setCachedProjects(
+          vaultId,
+          res.projects.map((p) => ({
+            id: p.id,
+            vaultId: p.vaultId,
+            payloadCiphertext: p.payloadCiphertext,
+            iv: p.iv,
+            cryptoVersion: p.cryptoVersion,
+            version: p.version,
+            deletedAt: p.deletedAt,
+            updatedAt: p.updatedAt,
+          }))
+        )
+      } else {
+        setProjectsList([])
+        await setCachedProjects(vaultId, [])
+      }
+    } catch (error) {
+      console.warn("Using cached projects while offline:", error)
+    } finally {
+      setLoading(false)
+    }
   }, [vaultId, vaultKey])
 
   useEffect(() => {
@@ -247,14 +260,38 @@ function ProjectsContent() {
     if (selectedProject?.id === project.id) setSelectedProject(updated)
     try {
       const encrypted = await encryptPayload(updated.payload, vaultKey)
-      const result = await updateProjectAction({
-        id: project.id,
-        payloadCiphertext: encrypted.ciphertext,
-        iv: encrypted.iv,
-        version: project.version,
-      })
-      if (result.error) throw new Error(result.error)
-      broadcastMessage({ type: "CACHE_INVALIDATED" })
+      if (navigator.onLine) {
+        const result = await updateProjectAction({
+          id: project.id,
+          payloadCiphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          version: project.version,
+        })
+        if (result.error) throw new Error(result.error)
+        broadcastMessage({ type: "CACHE_INVALIDATED" })
+      } else if (vaultId) {
+        await enqueueSyncJob("UPDATE_PROJECT", {
+          id: project.id,
+          payloadCiphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          version: project.version,
+        })
+        const existing = await getCachedProjects(vaultId)
+        await setCachedProjects(
+          vaultId,
+          existing.map((cached) =>
+            cached.id === project.id
+              ? {
+                  ...cached,
+                  payloadCiphertext: encrypted.ciphertext,
+                  iv: encrypted.iv,
+                  version: project.version + 1,
+                  updatedAt: new Date(),
+                }
+              : cached
+          )
+        )
+      }
       loadData()
     } catch (err) {
       console.error("Failed to toggle favorite", err)

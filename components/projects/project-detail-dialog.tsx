@@ -33,6 +33,12 @@ import {
 } from "@/lib/actions/projects"
 import { parseEnvText, serializeEnv } from "@/lib/env-parse"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
+import {
+  enqueueSyncJob,
+  getCachedProjects,
+  setCachedProjects,
+} from "@/lib/storage/indexed-db"
+import { flushSyncQueue } from "@/lib/sync-engine"
 import type {
   DecryptedProject,
   DecryptedProjectPayload,
@@ -301,13 +307,38 @@ export function ProjectDetailDialog({
     setError(null)
     try {
       const encrypted = await encryptPayload(draft, vaultKey)
-      const result = await updateProjectAction({
-        id: project.id,
-        payloadCiphertext: encrypted.ciphertext,
-        iv: encrypted.iv,
-        version: project.version,
-      })
-      if (result.error) throw new Error(result.error)
+      if (navigator.onLine) {
+        const result = await updateProjectAction({
+          id: project.id,
+          payloadCiphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          version: project.version,
+        })
+        if (result.error) throw new Error(result.error)
+      } else {
+        await enqueueSyncJob("UPDATE_PROJECT", {
+          id: project.id,
+          payloadCiphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          version: project.version,
+        })
+        const existing = await getCachedProjects(project.vaultId)
+        await setCachedProjects(
+          project.vaultId,
+          existing.map((cached) =>
+            cached.id === project.id
+              ? {
+                  ...cached,
+                  payloadCiphertext: encrypted.ciphertext,
+                  iv: encrypted.iv,
+                  version: project.version + 1,
+                  updatedAt: new Date(),
+                }
+              : cached
+          )
+        )
+        void flushSyncQueue()
+      }
       const updated: DecryptedProject = {
         ...project,
         payload: draft,
@@ -330,7 +361,21 @@ export function ProjectDetailDialog({
 
   async function confirmDelete() {
     if (!project) return
-    await softDeleteProjectAction(project.id)
+    if (navigator.onLine) {
+      await softDeleteProjectAction(project.id)
+    } else {
+      await enqueueSyncJob("DELETE_PROJECT", { id: project.id })
+      const existing = await getCachedProjects(project.vaultId)
+      await setCachedProjects(
+        project.vaultId,
+        existing.map((cached) =>
+          cached.id === project.id
+            ? { ...cached, deletedAt: new Date() }
+            : cached
+        )
+      )
+      void flushSyncQueue()
+    }
     onOpenChange(false)
     onDeleted()
   }

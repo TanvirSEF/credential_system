@@ -30,47 +30,60 @@ function DocumentsContent() {
 
   const [documentsList, setDocumentsList] = useState<DecryptedDocument[]>([])
   const [loading, setLoading] = useState(true)
+  const [offline, setOffline] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   const loadDocuments = useCallback(async () => {
     if (!vaultId || !vaultKey) return
     setLoading(true)
 
-    const res = await fetchDocumentsAction(vaultId)
-    if (res.documents && res.documents.length > 0) {
-      const decrypted = await Promise.all(
-        res.documents.map(async (doc) => {
-          const metadata = await decryptPayload<DecryptedDocumentMetadata>(
-            {
-              ciphertext: doc.metadataCiphertext,
-              iv: doc.metadataIv,
-              cryptoVersion: doc.cryptoVersion,
-              schemaVersion: 1,
-            },
-            vaultKey
-          )
-
-          return {
-            id: doc.id,
-            vaultId: doc.vaultId,
-            ownerId: doc.ownerId,
-            credentialId: doc.credentialId,
-            storagePath: doc.storagePath,
-            ciphertextSha256: doc.ciphertextSha256,
-            ciphertextSize: doc.ciphertextSize,
-            uploadStatus: doc.uploadStatus,
-            deletedAt: doc.deletedAt,
-            metadata,
-            createdAt: doc.createdAt,
-            updatedAt: doc.updatedAt,
-          }
-        })
-      )
-      setDocumentsList(decrypted)
-    } else {
-      setDocumentsList([])
+    if (!navigator.onLine) {
+      setOffline(true)
+      setLoading(false)
+      return
     }
-    setLoading(false)
+
+    try {
+      const res = await fetchDocumentsAction(vaultId)
+      if (res.documents && res.documents.length > 0) {
+        const decrypted = await Promise.all(
+          res.documents.map(async (doc) => {
+            const metadata = await decryptPayload<DecryptedDocumentMetadata>(
+              {
+                ciphertext: doc.metadataCiphertext,
+                iv: doc.metadataIv,
+                cryptoVersion: doc.cryptoVersion,
+                schemaVersion: 1,
+              },
+              vaultKey
+            )
+
+            return {
+              id: doc.id,
+              vaultId: doc.vaultId,
+              ownerId: doc.ownerId,
+              credentialId: doc.credentialId,
+              storagePath: doc.storagePath,
+              ciphertextSha256: doc.ciphertextSha256,
+              ciphertextSize: doc.ciphertextSize,
+              uploadStatus: doc.uploadStatus,
+              deletedAt: doc.deletedAt,
+              metadata,
+              createdAt: doc.createdAt,
+              updatedAt: doc.updatedAt,
+            }
+          })
+        )
+        setDocumentsList(decrypted)
+      } else {
+        setDocumentsList([])
+      }
+      setOffline(false)
+    } catch {
+      setOffline(true)
+    } finally {
+      setLoading(false)
+    }
   }, [vaultId, vaultKey])
 
   useEffect(() => {
@@ -144,10 +157,25 @@ function DocumentsContent() {
             {totalSizeMB} MB)
           </p>
         </div>
-        <UploadDocumentDialog onUploaded={loadDocuments} />
+        {!offline && <UploadDocumentDialog onUploaded={loadDocuments} />}
       </div>
 
-      {loading ? (
+      {offline ? (
+        <Card className="border-dashed py-16 text-center shadow-sm">
+          <CardHeader className="items-center gap-3">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <FileText className="h-7 w-7" />
+            </div>
+            <CardTitle className="text-xl">
+              Documents need a connection
+            </CardTitle>
+            <CardDescription className="mx-auto max-w-sm">
+              Encrypted document blobs are not stored in the browser. Reconnect
+              to upload, download, or manage documents.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : loading ? (
         <div className="py-12 text-center text-sm text-muted-foreground">
           Decrypting document metadata...
         </div>
@@ -167,7 +195,10 @@ function DocumentsContent() {
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {documentsList.map((doc) => (
-            <Card key={doc.id} className="group relative overflow-hidden shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md">
+            <Card
+              key={doc.id}
+              className="group relative overflow-hidden shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md"
+            >
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                 <div className="space-y-1 truncate pr-2">
                   <CardTitle className="flex items-center gap-3 truncate text-base font-bold">

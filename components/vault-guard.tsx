@@ -6,6 +6,7 @@ import { getUserVaultStatus } from "@/lib/actions/vault"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
 import { subscribeBroadcast } from "@/lib/storage/broadcast-channel"
 import { loadAutoLockPreferences } from "@/lib/security/auto-lock"
+import { flushSyncQueue } from "@/lib/sync-engine"
 
 export function VaultGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -28,18 +29,39 @@ export function VaultGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function verifyGuard() {
-      const status = await getUserVaultStatus()
-      if (status.error) {
-        setStatusError(status.error)
-        setLoading(false)
-      } else if (!status.authenticated) {
-        router.push("/login")
-      } else if (!status.hasVault) {
-        router.push("/setup")
-      } else if (!isUnlocked) {
-        router.push("/unlock")
-      } else {
-        setLoading(false)
+      if (!navigator.onLine) {
+        if (isUnlocked) {
+          setStatusError(null)
+          setLoading(false)
+        } else {
+          router.replace("/offline")
+        }
+        return
+      }
+
+      try {
+        const status = await getUserVaultStatus()
+        if (status.error) {
+          setStatusError(status.error)
+          setLoading(false)
+        } else if (!status.authenticated) {
+          router.push("/login")
+        } else if (!status.hasVault) {
+          router.push("/setup")
+        } else if (!isUnlocked) {
+          router.push("/unlock")
+        } else {
+          setStatusError(null)
+          setLoading(false)
+          void flushSyncQueue()
+        }
+      } catch {
+        if (isUnlocked) {
+          setStatusError(null)
+          setLoading(false)
+        } else {
+          router.replace("/offline")
+        }
       }
     }
     verifyGuard()

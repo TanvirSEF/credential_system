@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useVaultSessionStore } from "@/stores/vault-session-store"
 import { signOutAction } from "@/lib/actions/auth"
 import { getProfileAction } from "@/lib/actions/profile"
+import { clearVaultCache } from "@/lib/storage/indexed-db"
 import { Avatar } from "@/components/avatar"
 import { BrandLogo } from "@/components/brand-logo"
 import {
@@ -46,9 +47,11 @@ export function DashboardSidebar() {
   } | null>(null)
 
   useEffect(() => {
-    getProfileAction().then((p) => {
-      if (p) setProfile({ fullName: p.fullName, avatarUrl: p.avatarUrl })
-    })
+    getProfileAction()
+      .then((p) => {
+        if (p) setProfile({ fullName: p.fullName, avatarUrl: p.avatarUrl })
+      })
+      .catch(() => {})
   }, [pathname])
 
   function handleLock() {
@@ -58,6 +61,7 @@ export function DashboardSidebar() {
 
   async function handleSignOut() {
     lockVault()
+    await clearVaultCache()
     await signOutAction()
   }
 
@@ -71,7 +75,7 @@ export function DashboardSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event("spv:open-search"))}

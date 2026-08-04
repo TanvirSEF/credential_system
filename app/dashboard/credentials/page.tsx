@@ -12,6 +12,9 @@ import { fetchCredentialTypesAction } from "@/lib/actions/credential-types"
 import {
   setCachedCredentials,
   getCachedCredentials,
+  getCachedTypes,
+  setCachedTypes,
+  enqueueSyncJob,
 } from "@/lib/storage/indexed-db"
 import {
   subscribeBroadcast,
@@ -143,75 +146,125 @@ function CredentialsContent() {
       setLoading(true)
     }
 
-    const typesRes = await fetchCredentialTypesAction(vaultId)
-    if (typesRes.types && typesRes.types.length > 0) {
-      const decryptedTypes = await Promise.all(
-        typesRes.types.map(async (t) => ({
-          id: t.id,
-          vaultId: t.vaultId,
-          ownerId: t.ownerId,
-          parentId: t.parentId,
-          sortOrder: t.sortOrder,
-          archivedAt: t.archivedAt,
-          payload: await decryptPayload<CredentialTypePayload>(
-            {
-              ciphertext: t.payloadCiphertext,
-              iv: t.iv,
-              cryptoVersion: t.cryptoVersion,
-              schemaVersion: t.schemaVersion,
-            },
-            vaultKey
-          ),
-        }))
+    const cachedTypes = await getCachedTypes(vaultId)
+    if (cachedTypes.length > 0) {
+      setTypes(
+        await Promise.all(
+          cachedTypes.map(async (type) => ({
+            id: type.id,
+            vaultId: type.vaultId,
+            ownerId: "",
+            parentId: type.parentId,
+            sortOrder: type.sortOrder,
+            archivedAt: type.archivedAt,
+            payload: await decryptPayload<CredentialTypePayload>(
+              {
+                ciphertext: type.payloadCiphertext,
+                iv: type.iv,
+                cryptoVersion: type.cryptoVersion,
+                schemaVersion: 1,
+              },
+              vaultKey
+            ),
+          }))
+        )
       )
-      setTypes(decryptedTypes)
     }
 
-    const credsRes = await fetchCredentialsAction(vaultId)
-    if (credsRes.credentials && credsRes.credentials.length > 0) {
-      const decryptedCreds = await Promise.all(
-        credsRes.credentials.map(async (c) => ({
-          id: c.id,
-          vaultId: c.vaultId,
-          ownerId: c.ownerId,
-          typeId: c.typeId,
-          deletedAt: c.deletedAt,
-          version: c.version,
-          createdAt: c.createdAt,
-          updatedAt: c.updatedAt,
-          payload: await decryptPayload<DecryptedCredentialPayload>(
-            {
-              ciphertext: c.payloadCiphertext,
-              iv: c.iv,
-              cryptoVersion: c.cryptoVersion,
-              schemaVersion: c.schemaVersion,
-            },
-            vaultKey
-          ),
-        }))
-      )
-      setCredentialsList(decryptedCreds)
-
-      setCachedCredentials(
-        vaultId,
-        credsRes.credentials.map((r) => ({
-          id: r.id,
-          vaultId: r.vaultId,
-          typeId: r.typeId,
-          payloadCiphertext: r.payloadCiphertext,
-          iv: r.iv,
-          cryptoVersion: r.cryptoVersion,
-          version: r.version,
-          deletedAt: r.deletedAt,
-          updatedAt: r.updatedAt,
-        }))
-      )
-    } else {
-      setCredentialsList([])
-      setCachedCredentials(vaultId, [])
+    if (!navigator.onLine) {
+      setLoading(false)
+      return
     }
 
-    setLoading(false)
+    try {
+      const typesRes = await fetchCredentialTypesAction(vaultId)
+      if (typesRes.types && typesRes.types.length > 0) {
+        const decryptedTypes = await Promise.all(
+          typesRes.types.map(async (t) => ({
+            id: t.id,
+            vaultId: t.vaultId,
+            ownerId: t.ownerId,
+            parentId: t.parentId,
+            sortOrder: t.sortOrder,
+            archivedAt: t.archivedAt,
+            payload: await decryptPayload<CredentialTypePayload>(
+              {
+                ciphertext: t.payloadCiphertext,
+                iv: t.iv,
+                cryptoVersion: t.cryptoVersion,
+                schemaVersion: t.schemaVersion,
+              },
+              vaultKey
+            ),
+          }))
+        )
+        setTypes(decryptedTypes)
+        await setCachedTypes(
+          vaultId,
+          typesRes.types.map((type) => ({
+            id: type.id,
+            vaultId: type.vaultId,
+            parentId: type.parentId,
+            payloadCiphertext: type.payloadCiphertext,
+            iv: type.iv,
+            cryptoVersion: type.cryptoVersion,
+            sortOrder: type.sortOrder,
+            archivedAt: type.archivedAt,
+          }))
+        )
+      } else {
+        setTypes([])
+        await setCachedTypes(vaultId, [])
+      }
+
+      const credsRes = await fetchCredentialsAction(vaultId)
+      if (credsRes.credentials && credsRes.credentials.length > 0) {
+        const decryptedCreds = await Promise.all(
+          credsRes.credentials.map(async (c) => ({
+            id: c.id,
+            vaultId: c.vaultId,
+            ownerId: c.ownerId,
+            typeId: c.typeId,
+            deletedAt: c.deletedAt,
+            version: c.version,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+            payload: await decryptPayload<DecryptedCredentialPayload>(
+              {
+                ciphertext: c.payloadCiphertext,
+                iv: c.iv,
+                cryptoVersion: c.cryptoVersion,
+                schemaVersion: c.schemaVersion,
+              },
+              vaultKey
+            ),
+          }))
+        )
+        setCredentialsList(decryptedCreds)
+
+        await setCachedCredentials(
+          vaultId,
+          credsRes.credentials.map((r) => ({
+            id: r.id,
+            vaultId: r.vaultId,
+            typeId: r.typeId,
+            payloadCiphertext: r.payloadCiphertext,
+            iv: r.iv,
+            cryptoVersion: r.cryptoVersion,
+            version: r.version,
+            deletedAt: r.deletedAt,
+            updatedAt: r.updatedAt,
+          }))
+        )
+      } else {
+        setCredentialsList([])
+        await setCachedCredentials(vaultId, [])
+      }
+    } catch (error) {
+      console.warn("Using cached credentials while offline:", error)
+    } finally {
+      setLoading(false)
+    }
   }, [vaultId, vaultKey])
 
   useEffect(() => {
@@ -334,15 +387,40 @@ function CredentialsContent() {
     if (selectedCredential?.id === credential.id) setSelectedCredential(updated)
     try {
       const encrypted = await encryptPayload(updated.payload, vaultKey)
-      const result = await updateCredentialAction({
-        id: credential.id,
-        typeId: credential.typeId || undefined,
-        payloadCiphertext: encrypted.ciphertext,
-        iv: encrypted.iv,
-        version: credential.version,
-      })
-      if (result.error) throw new Error(result.error)
-      broadcastMessage({ type: "CACHE_INVALIDATED" })
+      if (navigator.onLine) {
+        const result = await updateCredentialAction({
+          id: credential.id,
+          typeId: credential.typeId || undefined,
+          payloadCiphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          version: credential.version,
+        })
+        if (result.error) throw new Error(result.error)
+        broadcastMessage({ type: "CACHE_INVALIDATED" })
+      } else if (vaultId) {
+        await enqueueSyncJob("UPDATE_CREDENTIAL", {
+          id: credential.id,
+          typeId: credential.typeId || undefined,
+          payloadCiphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          version: credential.version,
+        })
+        const existing = await getCachedCredentials(vaultId)
+        await setCachedCredentials(
+          vaultId,
+          existing.map((cached) =>
+            cached.id === credential.id
+              ? {
+                  ...cached,
+                  payloadCiphertext: encrypted.ciphertext,
+                  iv: encrypted.iv,
+                  version: credential.version + 1,
+                  updatedAt: new Date(),
+                }
+              : cached
+          )
+        )
+      }
       loadData()
     } catch (err) {
       console.error("Failed to toggle favorite", err)

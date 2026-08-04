@@ -38,17 +38,19 @@ function isStandalone() {
   )
 }
 
-async function requestInstall() {
+type InstallRequestResult = "accepted" | "dismissed" | "unavailable"
+
+async function requestInstall(): Promise<InstallRequestResult> {
   const prompt = window.__spvInstallPrompt
-  if (!prompt) return false
+  if (!prompt) return "unavailable"
   await prompt.prompt()
   const choice = await prompt.userChoice
   if (choice.outcome === "accepted") {
     window.__spvInstallPrompt = undefined
-    window.dispatchEvent(new Event(INSTALLED_EVENT))
-    return true
+    window.dispatchEvent(new Event(INSTALL_READY_EVENT))
+    return "accepted"
   }
-  return false
+  return "dismissed"
 }
 
 function applyUpdate() {
@@ -93,6 +95,7 @@ function usePwaStatus() {
 export function PwaManager() {
   const { installAvailable, updateAvailable } = usePwaStatus()
   const [dismissed, setDismissed] = useState(false)
+  const [installRequested, setInstallRequested] = useState(false)
 
   useEffect(() => {
     const handleInstallPrompt = (event: Event) => {
@@ -103,6 +106,7 @@ export function PwaManager() {
     }
     const handleInstalled = () => {
       window.__spvInstallPrompt = undefined
+      setInstallRequested(false)
       setDismissed(true)
       window.dispatchEvent(new Event(INSTALLED_EVENT))
     }
@@ -163,7 +167,17 @@ export function PwaManager() {
     }
   }, [])
 
-  if (dismissed || (!installAvailable && !updateAvailable)) return null
+  async function handleInstall() {
+    const result = await requestInstall()
+    setInstallRequested(result === "accepted")
+  }
+
+  if (
+    dismissed ||
+    (!installAvailable && !updateAvailable && !installRequested)
+  ) {
+    return null
+  }
 
   return (
     <aside className="fixed right-4 bottom-24 z-50 w-[calc(100%-2rem)] max-w-sm rounded-2xl border bg-card/95 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl md:bottom-5">
@@ -192,17 +206,24 @@ export function PwaManager() {
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {updateAvailable
               ? "Apply the latest interface update. Your unlocked vault will lock during reload."
-              : "Add it to Android for a standalone, full-screen experience."}
+              : installRequested
+                ? "Android accepted the request. Wait for Chrome to confirm that installation finished."
+                : "Add it to Android for a standalone, full-screen experience."}
           </p>
         </div>
       </div>
       <Button
         size="sm"
         className="mt-3 w-full"
-        onClick={updateAvailable ? applyUpdate : () => void requestInstall()}
+        disabled={installRequested}
+        onClick={updateAvailable ? applyUpdate : () => void handleInstall()}
       >
-        {updateAvailable ? <RefreshCw /> : <Download />}
-        {updateAvailable ? "Update and reload" : "Install app"}
+        {updateAvailable || installRequested ? <RefreshCw /> : <Download />}
+        {updateAvailable
+          ? "Update and reload"
+          : installRequested
+            ? "Waiting for Android..."
+            : "Install app"}
       </Button>
     </aside>
   )
@@ -210,6 +231,12 @@ export function PwaManager() {
 
 export function PwaSettingsCard() {
   const { installed, installAvailable, updateAvailable } = usePwaStatus()
+  const [installRequested, setInstallRequested] = useState(false)
+
+  async function handleInstall() {
+    const result = await requestInstall()
+    setInstallRequested(result === "accepted")
+  }
 
   return (
     <Card>
@@ -229,23 +256,32 @@ export function PwaSettingsCard() {
       <CardContent className="space-y-4">
         <div className="flex items-start gap-2.5 rounded-xl border bg-muted/20 p-3.5 text-xs leading-relaxed text-muted-foreground">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-500" />
-          Only public interface assets are cached. Sessions, credentials,
-          documents, and decrypted vault data are never added to the offline
-          cache.
+          Only public interface assets are cached. An already-unlocked vault can
+          use its encrypted local cache while this app session remains open;
+          authenticated pages and decrypted data are never cached.
         </div>
 
         {updateAvailable ? (
           <Button onClick={applyUpdate}>
             <RefreshCw /> Update and reload
           </Button>
-        ) : installAvailable ? (
-          <Button onClick={() => void requestInstall()}>
-            <Download /> Install app
-          </Button>
         ) : installed ? (
           <div className="flex items-center gap-2 text-sm font-medium text-emerald-500">
             <ShieldCheck className="size-4" /> Installed on this device
           </div>
+        ) : installRequested ? (
+          <div className="space-y-2 text-xs leading-relaxed text-muted-foreground">
+            <div className="flex items-center gap-2 font-medium text-foreground">
+              <RefreshCw className="size-4 animate-spin" /> Waiting for Android
+            </div>
+            Chrome accepted the request but has not confirmed installation yet.
+            If it does not finish, close Chrome completely, reopen this HTTPS
+            site, and use Chrome menu → Install app.
+          </div>
+        ) : installAvailable ? (
+          <Button onClick={() => void handleInstall()}>
+            <Download /> Install app
+          </Button>
         ) : (
           <p className="text-xs leading-relaxed text-muted-foreground">
             On Android Chrome, open the browser menu and choose{" "}
