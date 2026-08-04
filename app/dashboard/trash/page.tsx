@@ -19,6 +19,11 @@ import {
   permanentDeleteNoteAction,
   restoreNoteAction,
 } from "@/lib/actions/notes"
+import {
+  fetchTrashTasksAction,
+  permanentDeleteTaskAction,
+  restoreTaskAction,
+} from "@/lib/actions/tasks"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -34,10 +39,11 @@ import { RefreshCw, Trash2 } from "lucide-react"
 import { DecryptedCredentialPayload } from "@/lib/types/credential"
 import { DecryptedProjectPayload } from "@/lib/types/project"
 import { DecryptedNotePayload } from "@/lib/types/note"
+import { DecryptedTaskPayload } from "@/lib/types/task"
 import { countVariables } from "@/lib/env-parse"
 import { noteSnippet } from "@/components/notes/markdown-preview"
 
-type TrashType = "credentials" | "projects" | "notes"
+type TrashType = "credentials" | "projects" | "notes" | "tasks"
 
 interface TrashItem {
   id: string
@@ -50,6 +56,7 @@ const TRASH_TABS: Array<{ id: TrashType; label: string }> = [
   { id: "credentials", label: "Credentials" },
   { id: "projects", label: "Projects" },
   { id: "notes", label: "Notes" },
+  { id: "tasks", label: "Tasks" },
 ]
 
 function TrashCard({
@@ -160,7 +167,7 @@ function TrashDashboardContent() {
           }
         })
       )
-    } else {
+    } else if (trashType === "notes") {
       const res = await fetchTrashNotesAction(vaultId)
       nextItems = await Promise.all(
         (res.notes ?? []).map(async (n) => {
@@ -181,6 +188,29 @@ function TrashDashboardContent() {
           }
         })
       )
+    } else {
+      const res = await fetchTrashTasksAction(vaultId)
+      nextItems = await Promise.all(
+        (res.tasks ?? []).map(async (t) => {
+          const payload = await decryptPayload<DecryptedTaskPayload>(
+            {
+              ciphertext: t.payloadCiphertext,
+              iv: t.iv,
+              cryptoVersion: t.cryptoVersion,
+              schemaVersion: t.schemaVersion,
+            },
+            vaultKey
+          )
+          return {
+            id: t.id,
+            title: payload.title,
+            subtitle: payload.dueDate
+              ? `Due ${new Date(payload.dueDate).toLocaleDateString()}`
+              : undefined,
+            deletedAt: t.deletedAt,
+          }
+        })
+      )
     }
 
     setItems(nextItems)
@@ -197,8 +227,10 @@ function TrashDashboardContent() {
       await restoreCredentialAction(id)
     } else if (trashType === "projects") {
       await restoreProjectAction(id)
-    } else {
+    } else if (trashType === "notes") {
       await restoreNoteAction(id)
+    } else {
+      await restoreTaskAction(id)
     }
     loadTrash()
   }
@@ -213,8 +245,10 @@ function TrashDashboardContent() {
       await permanentDeleteCredentialAction(purgeId)
     } else if (trashType === "projects") {
       await permanentDeleteProjectAction(purgeId)
-    } else {
+    } else if (trashType === "notes") {
       await permanentDeleteNoteAction(purgeId)
+    } else {
+      await permanentDeleteTaskAction(purgeId)
     }
     setPurgeId(null)
     loadTrash()

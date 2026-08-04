@@ -1,5 +1,6 @@
 import type { CachedProjectRow } from "@/lib/types/project"
 import type { CachedNoteRow } from "@/lib/types/note"
+import type { CachedTaskRow, CachedTaskListRow } from "@/lib/types/task"
 
 const DB_NAME = "spv_vault_cache"
 
@@ -32,6 +33,8 @@ const REQUIRED_STORES = [
   "vault_meta",
   "projects_cache",
   "notes_cache",
+  "tasks_cache",
+  "task_lists_cache",
   "offline_sync_queue",
 ]
 
@@ -50,6 +53,12 @@ function createStores(db: IDBDatabase) {
   }
   if (!db.objectStoreNames.contains("notes_cache")) {
     db.createObjectStore("notes_cache", { keyPath: "id" })
+  }
+  if (!db.objectStoreNames.contains("tasks_cache")) {
+    db.createObjectStore("tasks_cache", { keyPath: "id" })
+  }
+  if (!db.objectStoreNames.contains("task_lists_cache")) {
+    db.createObjectStore("task_lists_cache", { keyPath: "id" })
   }
   if (!db.objectStoreNames.contains("offline_sync_queue")) {
     db.createObjectStore("offline_sync_queue", { keyPath: "id" })
@@ -286,6 +295,104 @@ export async function getCachedNotes(
   }
 }
 
+export async function setCachedTasks(
+  vaultId: string,
+  rows: CachedTaskRow[]
+): Promise<void> {
+  try {
+    const db = await openDB()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(["tasks_cache"], "readwrite")
+      const store = tx.objectStore("tasks_cache")
+      const req = store.openCursor()
+      req.onsuccess = () => {
+        const cursor = req.result
+        if (cursor) {
+          if (cursor.value.vaultId === vaultId) cursor.delete()
+          cursor.continue()
+        } else {
+          for (const row of rows) store.put(row)
+        }
+      }
+      req.onerror = () => reject(req.error)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch (err) {
+    console.warn("IndexedDB cache save warning:", err)
+  }
+}
+
+export async function getCachedTasks(
+  vaultId: string
+): Promise<CachedTaskRow[]> {
+  try {
+    const db = await openDB()
+    return new Promise((resolve) => {
+      const tx = db.transaction(["tasks_cache"], "readonly")
+      const store = tx.objectStore("tasks_cache")
+      const req = store.getAll()
+
+      req.onsuccess = () => {
+        const rows = (req.result as CachedTaskRow[]) || []
+        resolve(rows.filter((r) => r.vaultId === vaultId))
+      }
+      req.onerror = () => resolve([])
+    })
+  } catch {
+    return []
+  }
+}
+
+export async function setCachedTaskLists(
+  vaultId: string,
+  rows: CachedTaskListRow[]
+): Promise<void> {
+  try {
+    const db = await openDB()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(["task_lists_cache"], "readwrite")
+      const store = tx.objectStore("task_lists_cache")
+      const req = store.openCursor()
+      req.onsuccess = () => {
+        const cursor = req.result
+        if (cursor) {
+          if (cursor.value.vaultId === vaultId) cursor.delete()
+          cursor.continue()
+        } else {
+          for (const row of rows) store.put(row)
+        }
+      }
+      req.onerror = () => reject(req.error)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch (err) {
+    console.warn("IndexedDB cache save warning:", err)
+  }
+}
+
+export async function getCachedTaskLists(
+  vaultId: string
+): Promise<CachedTaskListRow[]> {
+  try {
+    const db = await openDB()
+    return new Promise((resolve) => {
+      const tx = db.transaction(["task_lists_cache"], "readonly")
+      const store = tx.objectStore("task_lists_cache")
+      const req = store.getAll()
+
+      req.onsuccess = () => {
+        const rows = (req.result as CachedTaskListRow[]) || []
+        resolve(rows.filter((r) => r.vaultId === vaultId))
+      }
+      req.onerror = () => resolve([])
+    })
+  } catch {
+    return []
+  }
+}
+
 export async function clearVaultCache(): Promise<void> {
   try {
     const db = await openDB()
@@ -296,6 +403,8 @@ export async function clearVaultCache(): Promise<void> {
           "types_cache",
           "projects_cache",
           "notes_cache",
+          "tasks_cache",
+          "task_lists_cache",
           "vault_meta",
           "offline_sync_queue",
         ],
@@ -305,6 +414,8 @@ export async function clearVaultCache(): Promise<void> {
       tx.objectStore("types_cache").clear()
       tx.objectStore("projects_cache").clear()
       tx.objectStore("notes_cache").clear()
+      tx.objectStore("tasks_cache").clear()
+      tx.objectStore("task_lists_cache").clear()
       tx.objectStore("vault_meta").clear()
       tx.objectStore("offline_sync_queue").clear()
       tx.oncomplete = () => resolve()
@@ -368,6 +479,38 @@ export interface SyncJobPayloadMap {
     version: number
   }
   DELETE_PROJECT: { id: string }
+  CREATE_TASK: {
+    id: string
+    vaultId: string
+    listId?: string | null
+    parentId?: string | null
+    payloadCiphertext: string
+    iv: string
+  }
+  UPDATE_TASK: {
+    id: string
+    listId?: string | null
+    parentId?: string | null
+    payloadCiphertext: string
+    iv: string
+    version: number
+  }
+  DELETE_TASK: { id: string }
+  CREATE_TASK_LIST: {
+    id: string
+    vaultId: string
+    sortOrder: number
+    payloadCiphertext: string
+    iv: string
+  }
+  UPDATE_TASK_LIST: {
+    id: string
+    sortOrder?: number
+    payloadCiphertext: string
+    iv: string
+    version: number
+  }
+  DELETE_TASK_LIST: { id: string }
 }
 
 export type SyncJob = {

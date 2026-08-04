@@ -8,6 +8,7 @@ import {
   FileText,
   FolderGit2,
   KeyRound,
+  ListTodo,
   LoaderCircle,
   Search,
   StickyNote,
@@ -29,7 +30,7 @@ import { subscribeBroadcast } from "@/lib/storage/broadcast-channel"
 
 interface SearchResult {
   id: string
-  kind: "credential" | "project" | "note" | "document"
+  kind: "credential" | "project" | "note" | "document" | "task"
   title: string
   detail: string
   haystack: string
@@ -42,6 +43,7 @@ const ICONS = {
   project: FolderGit2,
   note: StickyNote,
   document: FileText,
+  task: ListTodo,
 }
 
 function buildResults(index: DecryptedVaultIndex): SearchResult[] {
@@ -117,6 +119,27 @@ function buildResults(index: DecryptedVaultIndex): SearchResult[] {
         .join(" ")
         .toLowerCase(),
       href: "/dashboard/documents",
+    })),
+    ...index.tasks.map((item) => ({
+      id: item.id,
+      kind: "task" as const,
+      title: item.payload.title,
+      detail: item.payload.dueDate
+        ? `Due ${new Date(item.payload.dueDate).toLocaleString()}`
+        : (item.payload.description
+            ?.replace(/[#*_`]/g, " ")
+            .trim()
+            .slice(0, 90) ||
+            "Task"),
+      haystack: [
+        item.payload.title,
+        item.payload.description,
+        ...(item.payload.tags || []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase(),
+      href: "/dashboard/tasks",
     })),
   ]
 }

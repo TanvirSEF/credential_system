@@ -22,6 +22,16 @@ import {
   updateProjectAction,
   softDeleteProjectAction,
 } from "@/lib/actions/projects"
+import {
+  createTaskAction,
+  updateTaskAction,
+  softDeleteTaskAction,
+} from "@/lib/actions/tasks"
+import {
+  createTaskListAction,
+  updateTaskListAction,
+  softDeleteTaskListAction,
+} from "@/lib/actions/task-lists"
 
 let isSyncing = false
 
@@ -146,6 +156,62 @@ async function processJob(job: SyncJob) {
     }
     case "DELETE_PROJECT": {
       const res = await softDeleteProjectAction(job.payload.id)
+      if (res.error) throw new Error(res.error)
+      break
+    }
+    case "CREATE_TASK": {
+      const res = await createTaskAction({
+        id: job.payload.id,
+        vaultId: job.payload.vaultId,
+        listId: job.payload.listId,
+        parentId: job.payload.parentId,
+        payloadCiphertext: job.payload.payloadCiphertext,
+        iv: job.payload.iv,
+      })
+      if (res.error) throw new Error(res.error)
+      break
+    }
+    case "UPDATE_TASK": {
+      const res = await updateTaskAction({
+        id: job.payload.id,
+        listId: job.payload.listId,
+        parentId: job.payload.parentId,
+        payloadCiphertext: job.payload.payloadCiphertext,
+        iv: job.payload.iv,
+        version: job.payload.version,
+      })
+      if (res.error) throw new Error(res.error)
+      break
+    }
+    case "DELETE_TASK": {
+      const res = await softDeleteTaskAction(job.payload.id)
+      if (res.error) throw new Error(res.error)
+      break
+    }
+    case "CREATE_TASK_LIST": {
+      const res = await createTaskListAction({
+        id: job.payload.id,
+        vaultId: job.payload.vaultId,
+        sortOrder: job.payload.sortOrder,
+        payloadCiphertext: job.payload.payloadCiphertext,
+        iv: job.payload.iv,
+      })
+      if (res.error) throw new Error(res.error)
+      break
+    }
+    case "UPDATE_TASK_LIST": {
+      const res = await updateTaskListAction({
+        id: job.payload.id,
+        sortOrder: job.payload.sortOrder,
+        payloadCiphertext: job.payload.payloadCiphertext,
+        iv: job.payload.iv,
+        version: job.payload.version,
+      })
+      if (res.error) throw new Error(res.error)
+      break
+    }
+    case "DELETE_TASK_LIST": {
+      const res = await softDeleteTaskListAction(job.payload.id)
       if (res.error) throw new Error(res.error)
       break
     }

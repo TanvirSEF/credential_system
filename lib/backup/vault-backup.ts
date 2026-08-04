@@ -9,6 +9,8 @@ import {
 } from "@/lib/actions/documents"
 import { createNoteAction } from "@/lib/actions/notes"
 import { createProjectAction } from "@/lib/actions/projects"
+import { createTaskAction } from "@/lib/actions/tasks"
+import { createTaskListAction } from "@/lib/actions/task-lists"
 import { decryptFile, encryptFile } from "@/lib/crypto/file-crypto"
 import { encryptPayload } from "@/lib/crypto"
 import type { DecryptedCredentialPayload } from "@/lib/types/credential"
@@ -16,6 +18,10 @@ import type { CredentialTypePayload } from "@/lib/types/credential-template"
 import type { DecryptedDocumentMetadata } from "@/lib/types/document"
 import type { DecryptedNotePayload } from "@/lib/types/note"
 import type { DecryptedProjectPayload } from "@/lib/types/project"
+import type {
+  DecryptedTaskListPayload,
+  DecryptedTaskPayload,
+} from "@/lib/types/task"
 import {
   loadDecryptedVaultIndex,
   type DecryptedVaultIndex,
@@ -46,6 +52,17 @@ interface BackupPayload {
   }>
   projects: Array<{ sourceId: string; payload: DecryptedProjectPayload }>
   notes: Array<{ sourceId: string; payload: DecryptedNotePayload }>
+  taskLists: Array<{
+    sourceId: string
+    sortOrder: number
+    payload: DecryptedTaskListPayload
+  }>
+  tasks: Array<{
+    sourceId: string
+    listSourceId: string | null
+    parentSourceId: string | null
+    payload: DecryptedTaskPayload
+  }>
   documents: Array<{
     sourceId: string
     credentialSourceId: string | null
@@ -153,6 +170,17 @@ async function buildBackupPayload(
       sourceId: item.id,
       payload: item.payload,
     })),
+    taskLists: index.taskLists.map((item) => ({
+      sourceId: item.id,
+      sortOrder: item.sortOrder,
+      payload: item.payload,
+    })),
+    tasks: index.tasks.map((item) => ({
+      sourceId: item.id,
+      listSourceId: item.listId,
+      parentSourceId: item.parentId,
+      payload: item.payload,
+    })),
     documents,
   }
 }
@@ -194,6 +222,8 @@ function assertBackupPayload(value: unknown): asserts value is BackupPayload {
     payload.credentials,
     payload.projects,
     payload.notes,
+    payload.taskLists,
+    payload.tasks,
     payload.documents,
   ]
   if (collections.some((collection) => !Array.isArray(collection)))
@@ -236,6 +266,21 @@ function assertBackupPayload(value: unknown): asserts value is BackupPayload {
         validSourceId(item) &&
         typeof item.payload?.title === "string" &&
         typeof item.payload.content === "string"
+    ) ||
+    !(payload.taskLists || []).every(
+      (item) =>
+        validSourceId(item) &&
+        typeof item.payload?.name === "string" &&
+        Number.isSafeInteger(item.sortOrder)
+    ) ||
+    !(payload.tasks || []).every(
+      (item) =>
+        validSourceId(item) &&
+        typeof item.payload?.title === "string" &&
+        (item.listSourceId === null ||
+          typeof item.listSourceId === "string") &&
+        (item.parentSourceId === null ||
+          typeof item.parentSourceId === "string")
     ) ||
     !(payload.documents || []).every(
       (item) =>
@@ -294,6 +339,8 @@ export async function restoreVaultBackup(
     payload.credentials.length +
     payload.projects.length +
     payload.notes.length +
+    payload.taskLists.length +
+    payload.tasks.length +
     payload.documents.length
   let current = 0
   const report = (message: string) =>
@@ -411,6 +458,70 @@ export async function restoreVaultBackup(
       created++
     }
     report(`Note: ${item.payload.title}`)
+  }
+
+  const taskListMap = new Map<string, string>()
+  const taskListNames = new Set(
+    existing.taskLists.map((item) => normalized(item.payload.name))
+  )
+  for (const item of payload.taskLists) {
+    if (taskListNames.has(normalized(item.payload.name))) skipped++
+    else {
+      const encrypted = await encryptPayload(item.payload, vaultKey)
+      const result = await createTaskListAction({
+        vaultId,
+        sortOrder: item.sortOrder,
+        payloadCiphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+      })
+      if (result.error || !("newTaskList" in result) || !result.newTaskList)
+        throw new Error(result.error || "Task list restore failed.")
+      taskListMap.set(item.sourceId, result.newTaskList.id)
+      taskListNames.add(normalized(item.payload.name))
+      created++
+    }
+    report(`Task list: ${item.payload.name}`)
+  }
+
+  const taskMap = new Map<string, string>()
+  const taskTitles = new Set(
+    existing.tasks.map((item) => normalized(item.payload.title))
+  )
+  const pendingTasks = [...payload.tasks]
+  while (pendingTasks.length) {
+    const readyIndex = pendingTasks.findIndex(
+      (item) =>
+        !item.parentSourceId ||
+        taskMap.has(item.parentSourceId) ||
+        !payload.tasks.some(
+          (candidate) => candidate.sourceId === item.parentSourceId
+        )
+    )
+    const item = pendingTasks.splice(readyIndex < 0 ? 0 : readyIndex, 1)[0]
+    if (taskTitles.has(normalized(item.payload.title))) {
+      skipped++
+    } else {
+      const restoredListId = item.listSourceId
+        ? (taskListMap.get(item.listSourceId) ?? null)
+        : null
+      const restoredParentId = item.parentSourceId
+        ? (taskMap.get(item.parentSourceId) ?? null)
+        : null
+      const encrypted = await encryptPayload(item.payload, vaultKey)
+      const result = await createTaskAction({
+        vaultId,
+        listId: restoredListId,
+        parentId: restoredParentId,
+        payloadCiphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+      })
+      if (result.error || !("newTask" in result) || !result.newTask)
+        throw new Error(result.error || "Task restore failed.")
+      taskMap.set(item.sourceId, result.newTask.id)
+      taskTitles.add(normalized(item.payload.title))
+      created++
+    }
+    report(`Task: ${item.payload.title}`)
   }
 
   const documentKeys = new Set(

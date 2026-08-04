@@ -23,12 +23,14 @@ import {
   StickyNote,
   ShieldCheck,
   Search,
+  ListTodo,
 } from "lucide-react"
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/credentials", label: "Credentials", icon: Key },
   { href: "/dashboard/projects", label: "Projects", icon: FolderGit2 },
+  { href: "/dashboard/tasks", label: "My Tasks", icon: ListTodo },
   { href: "/dashboard/notes", label: "Notes", icon: StickyNote },
   { href: "/dashboard/documents", label: "Documents", icon: FileText },
   { href: "/dashboard/types", label: "Categories", icon: Folder },
