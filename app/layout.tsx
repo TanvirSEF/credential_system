@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   },
   description:
     "A zero-knowledge encrypted vault for passwords, API keys, and private documents.",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.webmanifest?v=2",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
