@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { vaults, vaultKeyEnvelopes, credentialTypes } from "@/db/schema"
-import { eq, and, inArray } from "drizzle-orm"
+import { eq, and, inArray, gte, lt } from "drizzle-orm"
 import { withRls } from "@/db/rls"
 import { KeyEnvelope, KdfParams } from "@/lib/crypto/types"
 import {
@@ -157,7 +157,8 @@ export async function rotateRecoveryEnvelopeAction(payload: {
             eq(vaultKeyEnvelopes.vaultId, payload.vaultId),
             eq(vaultKeyEnvelopes.ownerId, user.id),
             eq(vaultKeyEnvelopes.envelopeType, "recovery"),
-            eq(vaultKeyEnvelopes.updatedAt, expectedUpdatedAt)
+            gte(vaultKeyEnvelopes.updatedAt, expectedUpdatedAt),
+            lt(vaultKeyEnvelopes.updatedAt, new Date(expectedUpdatedAt.getTime() + 1))
           )
         )
         .returning({ updatedAt: vaultKeyEnvelopes.updatedAt })
@@ -225,7 +226,8 @@ export async function recoverVaultAccessAction(payload: {
             eq(vaultKeyEnvelopes.vaultId, payload.vaultId),
             eq(vaultKeyEnvelopes.ownerId, user.id),
             eq(vaultKeyEnvelopes.envelopeType, "recovery"),
-            eq(vaultKeyEnvelopes.updatedAt, expectedRecoveryUpdatedAt)
+            gte(vaultKeyEnvelopes.updatedAt, expectedRecoveryUpdatedAt),
+            lt(vaultKeyEnvelopes.updatedAt, new Date(expectedRecoveryUpdatedAt.getTime() + 1))
           )
         )
         .returning({ id: vaultKeyEnvelopes.id })
@@ -240,7 +242,8 @@ export async function recoverVaultAccessAction(payload: {
             eq(vaultKeyEnvelopes.vaultId, payload.vaultId),
             eq(vaultKeyEnvelopes.ownerId, user.id),
             eq(vaultKeyEnvelopes.envelopeType, "master"),
-            eq(vaultKeyEnvelopes.updatedAt, expectedMasterUpdatedAt)
+            gte(vaultKeyEnvelopes.updatedAt, expectedMasterUpdatedAt),
+            lt(vaultKeyEnvelopes.updatedAt, new Date(expectedMasterUpdatedAt.getTime() + 1))
           )
         )
         .returning({ id: vaultKeyEnvelopes.id })
