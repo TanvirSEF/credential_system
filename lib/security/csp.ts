@@ -36,7 +36,7 @@ export function createContentSecurityPolicy(
     storagePublicOrigin,
   ].filter((value): value is string => Boolean(value))
 
-  return [
+  const directives = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
@@ -48,6 +48,17 @@ export function createContentSecurityPolicy(
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
-  ].join("; ")
+  ]
+
+  // upgrade-insecure-requests is only meaningful in production, where the app
+  // is served behind HTTPS. In development the app runs over plain HTTP, and
+  // this directive forces browsers to rewrite subresource requests (CSS, JS,
+  // fonts) to HTTPS — which fails against a local/LAN dev server and leaves
+  // pages unstyled. Browsers exempt localhost from this upgrade, but not LAN
+  // IPs such as 192.168.x.x, so it must stay disabled during development.
+  if (!isDevelopment) {
+    directives.push("upgrade-insecure-requests")
+  }
+
+  return directives.join("; ")
 }
