@@ -172,8 +172,31 @@ export async function updateTaskAction(payload: {
     ) || validateVersion(payload.version)
   if (validationError) return { error: validationError }
 
-  const updated = await withRls(user.id, (tx) =>
-    tx
+  return withRls(user.id, async (tx) => {
+    const current = await tx
+      .select({ vaultId: tasks.vaultId })
+      .from(tasks)
+      .where(and(eq(tasks.id, payload.id), eq(tasks.ownerId, user.id)))
+
+    if (!current[0]) return { error: "Task not found." }
+    const vaultId = current[0].vaultId
+
+    if (
+      payload.listId !== undefined &&
+      payload.listId &&
+      !(await taskListOwnedByVault(tx, payload.listId, vaultId, user.id))
+    ) {
+      return { error: "Task list does not belong to this vault." }
+    }
+    if (
+      payload.parentId !== undefined &&
+      payload.parentId &&
+      !(await taskOwnedByVault(tx, payload.parentId, vaultId, user.id))
+    ) {
+      return { error: "Parent task does not belong to this vault." }
+    }
+
+    const updated = await tx
       .update(tasks)
       .set({
         payloadCiphertext: payload.payloadCiphertext,
@@ -195,14 +218,14 @@ export async function updateTaskAction(payload: {
         )
       )
       .returning({ version: tasks.version })
-  )
 
-  return updated.length === 1
-    ? { success: true, version: updated[0].version }
-    : {
-        error: "This task was changed elsewhere. Refresh before saving again.",
-        conflict: true,
-      }
+    return updated.length === 1
+      ? { success: true, version: updated[0].version }
+      : {
+          error: "This task was changed elsewhere. Refresh before saving again.",
+          conflict: true,
+        }
+  })
 }
 
 export async function softDeleteTaskAction(id: string) {

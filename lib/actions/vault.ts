@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { vaults, vaultKeyEnvelopes, credentialTypes } from "@/db/schema"
-import { eq, and, inArray, gte, lt } from "drizzle-orm"
+import { eq, and, gte, lt } from "drizzle-orm"
 import { withRls } from "@/db/rls"
 import { KeyEnvelope, KdfParams } from "@/lib/crypto/types"
 import {
@@ -330,36 +330,29 @@ export async function createVaultAndEnvelopesAction(payload: {
   }
 
   const result = await withRls(user.id, async (tx) => {
-    const existingVaults = await tx
-      .select({ id: vaults.id })
-      .from(vaults)
-      .where(eq(vaults.ownerId, user.id))
-
-    if (existingVaults.length > 0) {
-      const completeVault = await tx
-        .select({ id: vaultKeyEnvelopes.id })
-        .from(vaultKeyEnvelopes)
-        .where(
-          and(
-            inArray(
-              vaultKeyEnvelopes.vaultId,
-              existingVaults.map((v) => v.id)
-            ),
-            eq(vaultKeyEnvelopes.envelopeType, "master")
-          )
+    // 1. Reject if a complete vault already exists (one with a master envelope).
+    const completeVault = await tx
+      .select({ vaultId: vaultKeyEnvelopes.vaultId })
+      .from(vaultKeyEnvelopes)
+      .where(
+        and(
+          eq(vaultKeyEnvelopes.ownerId, user.id),
+          eq(vaultKeyEnvelopes.envelopeType, "master")
         )
+      )
+      .limit(1)
 
-      if (completeVault.length > 0) {
-        return {
-          error:
-            "A vault already exists for this account. Sign in and unlock it instead.",
-        } as const
-      }
+    if (completeVault.length > 0) {
+      return {
+        error:
+          "A vault already exists for this account. Sign in and unlock it instead.",
+      } as const
     }
 
-    await tx.delete(vaults).where(eq(vaults.ownerId, user.id))
-
-    const [newVault] = await tx
+    // 2. Upsert the single vault row for this owner (UNIQUE(owner_id)). This
+    //    reuses an existing incomplete-vault row instead of deleting it, so we
+    //    never cascade-delete related rows — fixing the previous data-loss path.
+    const [vault] = await tx
       .insert(vaults)
       .values({
         ownerId: user.id,
@@ -367,11 +360,51 @@ export async function createVaultAndEnvelopesAction(payload: {
         nameIv: payload.nameIv,
         cryptoVersion: 1,
       })
+      .onConflictDoUpdate({
+        target: vaults.ownerId,
+        set: {
+          nameCiphertext: payload.nameCiphertext,
+          nameIv: payload.nameIv,
+          cryptoVersion: 1,
+          updatedAt: new Date(),
+        },
+      })
       .returning({ id: vaults.id })
+
+    // 3. Re-check after claiming the row: a concurrent create may have just
+    //    completed this vault. If a master envelope now exists, abort without
+    //    touching it. The truly-simultaneous case is additionally bounded by
+    //    the existing (vault_id, envelope_type) unique index on the insert below.
+    const masterExists = await tx
+      .select({ id: vaultKeyEnvelopes.id })
+      .from(vaultKeyEnvelopes)
+      .where(
+        and(
+          eq(vaultKeyEnvelopes.vaultId, vault.id),
+          eq(vaultKeyEnvelopes.envelopeType, "master")
+        )
+      )
+      .limit(1)
+
+    if (masterExists.length > 0) {
+      return {
+        error:
+          "A vault already exists for this account. Sign in and unlock it instead.",
+      } as const
+    }
+
+    // 4. Clear any partial envelopes/types left by a failed prior attempt on
+    //    this row, then attach the master + recovery envelopes and defaults.
+    await tx
+      .delete(vaultKeyEnvelopes)
+      .where(eq(vaultKeyEnvelopes.vaultId, vault.id))
+    await tx
+      .delete(credentialTypes)
+      .where(eq(credentialTypes.vaultId, vault.id))
 
     await tx.insert(vaultKeyEnvelopes).values([
       {
-        vaultId: newVault.id,
+        vaultId: vault.id,
         ownerId: user.id,
         envelopeType: "master",
         wrappedKey: payload.masterEnvelope.wrappedKey,
@@ -384,7 +417,7 @@ export async function createVaultAndEnvelopesAction(payload: {
         cryptoVersion: 1,
       },
       {
-        vaultId: newVault.id,
+        vaultId: vault.id,
         ownerId: user.id,
         envelopeType: "recovery",
         wrappedKey: payload.recoveryEnvelope.wrappedKey,
@@ -401,7 +434,7 @@ export async function createVaultAndEnvelopesAction(payload: {
     if (payload.defaultTypes.length > 0) {
       await tx.insert(credentialTypes).values(
         payload.defaultTypes.map((dt) => ({
-          vaultId: newVault.id,
+          vaultId: vault.id,
           ownerId: user.id,
           payloadCiphertext: dt.payloadCiphertext,
           iv: dt.iv,
@@ -412,7 +445,7 @@ export async function createVaultAndEnvelopesAction(payload: {
       )
     }
 
-    return { vaultId: newVault.id } as const
+    return { vaultId: vault.id } as const
   })
 
   if ("error" in result) {

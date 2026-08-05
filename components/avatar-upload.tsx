@@ -40,7 +40,7 @@ export function AvatarUpload({
 
     setBusy(true)
     try {
-      const presign = await getAvatarUploadUrlAction(file.type)
+      const presign = await getAvatarUploadUrlAction(file.type, file.size)
       if (
         presign.error ||
         !presign.uploadUrl ||

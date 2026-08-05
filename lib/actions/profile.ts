@@ -15,6 +15,11 @@ const ALLOWED_AVATAR_TYPES: Record<string, string> = {
   "image/webp": "webp",
 }
 
+// Maximum accepted avatar size. Enforced server-side at presign time by
+// binding Content-Length into the signed PUT URL (mirrors the document
+// upload path). The client keeps a matching constant in avatar-upload.tsx.
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024
+
 export async function getProfileAction() {
   const supabase = await createClient()
   const {
@@ -48,7 +53,10 @@ export async function getProfileAction() {
   }
 }
 
-export async function getAvatarUploadUrlAction(contentType: string) {
+export async function getAvatarUploadUrlAction(
+  contentType: string,
+  size: number
+) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -62,8 +70,12 @@ export async function getAvatarUploadUrlAction(contentType: string) {
     }
   }
 
+  if (!Number.isSafeInteger(size) || size <= 0 || size > MAX_AVATAR_BYTES) {
+    return { error: "Avatar must be 5 MB or smaller." }
+  }
+
   const key = objectKeyForAvatar(user.id, ext)
-  const uploadUrl = await presignPutUrl(key, contentType, 120)
+  const uploadUrl = await presignPutUrl(key, contentType, 120, size)
   return {
     error: null,
     storagePath: key,

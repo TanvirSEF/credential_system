@@ -24,19 +24,23 @@ export const profiles = pgTable("profiles", {
     .notNull(),
 })
 
-export const vaults = pgTable("vaults", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  ownerId: uuid("owner_id").notNull(),
-  nameCiphertext: text("name_ciphertext").notNull(),
-  nameIv: text("name_iv").notNull(),
-  cryptoVersion: integer("crypto_version").default(1).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-})
+export const vaults = pgTable(
+  "vaults",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    ownerId: uuid("owner_id").notNull(),
+    nameCiphertext: text("name_ciphertext").notNull(),
+    nameIv: text("name_iv").notNull(),
+    cryptoVersion: integer("crypto_version").default(1).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [uniqueIndex("vaults_owner_id_unique").on(table.ownerId)]
+)
 
 export const vaultKeyEnvelopes = pgTable(
   "vault_key_envelopes",
