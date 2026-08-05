@@ -6,6 +6,8 @@ ALTER TABLE credentials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE task_lists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- 1. Profiles Table Policies
@@ -142,6 +144,49 @@ CREATE POLICY "Users can manage own documents"
         WHERE credentials.id = documents.credential_id
           AND credentials.vault_id = documents.vault_id
           AND credentials.owner_id = auth.uid()
+      )
+    )
+  );
+
+-- 9. Task Lists Table Policies
+DROP POLICY IF EXISTS "Users can manage own task lists" ON task_lists;
+CREATE POLICY "Users can manage own task lists"
+  ON task_lists FOR ALL
+  USING (owner_id = auth.uid())
+  WITH CHECK (
+    owner_id = auth.uid()
+    AND char_length(payload_ciphertext) <= 1500000
+    AND EXISTS (
+      SELECT 1 FROM vaults
+      WHERE vaults.id = task_lists.vault_id
+        AND vaults.owner_id = auth.uid()
+    )
+  );
+
+-- 10. Tasks Table Policies
+-- NOTE: parent_id (self-reference to tasks) is intentionally NOT checked here.
+-- An EXISTS subquery against the same table would trigger Postgres
+-- "infinite recursion detected in policy for relation". Ownership of the
+-- parent task is therefore enforced at the application layer (taskOwnedByVault).
+DROP POLICY IF EXISTS "Users can manage own tasks" ON tasks;
+CREATE POLICY "Users can manage own tasks"
+  ON tasks FOR ALL
+  USING (owner_id = auth.uid())
+  WITH CHECK (
+    owner_id = auth.uid()
+    AND char_length(payload_ciphertext) <= 1500000
+    AND EXISTS (
+      SELECT 1 FROM vaults
+      WHERE vaults.id = tasks.vault_id
+        AND vaults.owner_id = auth.uid()
+    )
+    AND (
+      list_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM task_lists
+        WHERE task_lists.id = tasks.list_id
+          AND task_lists.vault_id = tasks.vault_id
+          AND task_lists.owner_id = auth.uid()
       )
     )
   );
